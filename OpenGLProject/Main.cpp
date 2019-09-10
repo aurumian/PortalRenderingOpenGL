@@ -21,6 +21,8 @@ static const char* vertexShaderSource = "#version 330 core \n layout (location =
 
 static const char* fragmentShaderSource = "#version 330 core \n out vec4 FragColor; \n void main() {FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f); }";
 
+static const char* fragmentShaderSource2 = "#version 330 core \n out vec4 FragColor; \n void main() {FragColor = vec4(1.0f, 1.0f, 0.0f, 1.0f);}";
+
 int main() {
 	//initialize glfw
 	glfwInit();
@@ -50,10 +52,14 @@ int main() {
 
 	//define vertices to draw
 	float vertices[] = {
-		 0.5f,  0.5f, 0.0f,  // top right
-		 0.5f, -0.5f, 0.0f,  // bottom right
-		 -0.5f,	-0.5f, 0.0f, // bottom left
-		 -0.5f,	0.5f, 0.0f,  // top left
+		 -0.75f,  0.0f, 0.0f,
+		 -0.5f, 0.5f, 0.0f,
+		 -0.25f, 0.0f, 0.0f
+	};
+	float vertices2[] = {
+		  0.25f, 0.0f, 0.0f,
+		  0.5f, -0.5f, 0.0f,
+		  0.75f, 0.0f, 0.0f,
 	};
 	unsigned int indices[] = {
 		0, 1, 3,
@@ -102,12 +108,24 @@ int main() {
 		glGetProgramInfoLog(vertexShader, infoLogSize, NULL, infoLog);
 		std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
 	}
-	//clean up
-	glDeleteShader(vertexShader);
-	glDeleteShader(fragmentShader);
 	//tell openGl how to interprete input data
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
+
+	//create second program
+	GLuint fs2 = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fs2, 1, &fragmentShaderSource2, 0);
+	glCompileShader(fs2);
+	
+	GLuint sp2 = glCreateProgram();
+	glAttachShader(sp2, vertexShader);
+	glAttachShader(sp2, fs2);
+	glLinkProgram(sp2);
+
+	//clean up
+	glDeleteShader(vertexShader);
+	glDeleteShader(fragmentShader);
+	glDeleteShader(fs2);
 
 	//create element buffer object
 	GLuint EBO;
@@ -128,6 +146,17 @@ int main() {
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
 
+	//create and configure second vertex array object
+	GLuint vao2;
+	glGenVertexArrays(1, &vao2);
+	glBindVertexArray(vao2);
+	GLuint vbo2;
+	glGenBuffers(1, &vbo2);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo2);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices2), vertices2, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+	glEnableVertexAttribArray(0);
+
 
 	//render loop
 	while (!glfwWindowShouldClose(window)) {
@@ -140,8 +169,12 @@ int main() {
 		
 		glUseProgram(shaderProgram);
 		glBindVertexArray(VAO);
-		//glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-		glDrawArrays(GL_TRIANGLES, 0, 6);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+
+		glUseProgram(sp2);
+		glBindVertexArray(vao2);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+
 		glBindVertexArray(0);
 
 		//check all the events and swap the buffers
