@@ -126,10 +126,11 @@
     <ClCompile Include="stb_image.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="FragmenShader.fs" />
+    <None Include="FragmenShader.fsf" />
     <None Include="VertexShader.vs" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Shader.h" />
     <ClInclude Include="ShaderProgram.h" />
     <ClInclude Include="stb_image.h" />
   </ItemGroup>

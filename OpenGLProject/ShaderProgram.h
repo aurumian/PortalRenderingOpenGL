@@ -109,7 +109,7 @@ private:
 		if (!success)
 		{
 			glGetShaderInfoLog(Shader, 512, NULL, infolog);
-			std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infolog << std::endl;
+			std::cout << "ERROR::SHADER::COMPILATION_FAILED\n" << infolog << std::endl;
 		}
 	}
 };

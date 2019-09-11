@@ -29,7 +29,7 @@
     <None Include="VertexShader.vs">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="FragmenShader.fs">
+    <None Include="FragmenShader.fsf">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
@@ -39,6 +39,9 @@
     </ClInclude>
     <ClInclude Include="stb_image.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Shader.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

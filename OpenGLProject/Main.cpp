@@ -1,6 +1,6 @@
 #include <string>
 #include <iostream>
-#include "ShaderProgram.h"
+#include "Shader.h"
 #include "stb_image.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -19,9 +19,7 @@ void processInput(GLFWwindow* window) {
 
 static const char* vertexShaderSource = "#version 330 core \n layout (location = 0) in vec3 aPos; \n\n void main(){ gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0); }";
 
-static const char* fragmentShaderSource = "#version 330 core \n out vec4 FragColor; \n void main() {FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f); }";
-
-static const char* fragmentShaderSource2 = "#version 330 core \n out vec4 FragColor; \n void main() {FragColor = vec4(1.0f, 1.0f, 0.0f, 1.0f);}";
+static const char* fragmentShaderSource = "#version 330 core \n out vec4 FragColor; \n uniform vec4 ourColor; void main() {FragColor = ourColor; }";
 
 int main() {
 	//initialize glfw
@@ -57,9 +55,10 @@ int main() {
 		 -0.25f, 0.0f, 0.0f
 	};
 	float vertices2[] = {
-		  0.25f, 0.0f, 0.0f,
-		  0.5f, -0.5f, 0.0f,
-		  0.75f, 0.0f, 0.0f,
+		  //positions			//colors
+		  0.25f, 0.0f, 0.0f,	1.0f, 0.0f, 0.0f,
+		  0.5f, -0.5f, 0.0f,	0.0f, 1.0f, 0.0f,
+		  0.75f, 0.0f, 0.0f,	0.0f, 0.0f, 1.0f
 	};
 	unsigned int indices[] = {
 		0, 1, 3,
@@ -105,27 +104,17 @@ int main() {
 	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
 	if (!success) {
 		char infoLog[infoLogSize];
-		glGetProgramInfoLog(vertexShader, infoLogSize, NULL, infoLog);
+		glGetProgramInfoLog(shaderProgram, infoLogSize, NULL, infoLog);
 		std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
 	}
 	//tell openGl how to interprete input data
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
 
-	//create second program
-	GLuint fs2 = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fs2, 1, &fragmentShaderSource2, 0);
-	glCompileShader(fs2);
-	
-	GLuint sp2 = glCreateProgram();
-	glAttachShader(sp2, vertexShader);
-	glAttachShader(sp2, fs2);
-	glLinkProgram(sp2);
 
 	//clean up
 	glDeleteShader(vertexShader);
 	glDeleteShader(fragmentShader);
-	glDeleteShader(fs2);
 
 	//create element buffer object
 	GLuint EBO;
@@ -154,9 +143,15 @@ int main() {
 	glGenBuffers(1, &vbo2);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo2);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices2), vertices2, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
 	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) (3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
 
+	//create shaderProgram
+	Shader sp = Shader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs", "D:\\VSProjects\\OpenGLProject\\OpenGLProject\\FragmenShader.fsf");
+	sp.use();
+	sp.setVec3("offset", 0.2f, 0.0f, 0.0f);
 
 	//render loop
 	while (!glfwWindowShouldClose(window)) {
@@ -167,11 +162,17 @@ int main() {
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		
+		float time = glfwGetTime();
+		float blueVal = (sin(time) + 1.0f) * 0.5f;
+		int vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
+		glUseProgram(shaderProgram);
+		glUniform4f(vertexColorLocation, 0.0f, 1.0f, blueVal, 1.0f);
+
 		glUseProgram(shaderProgram);
 		glBindVertexArray(VAO);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 
-		glUseProgram(sp2);
+		sp.use();
 		glBindVertexArray(vao2);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 
