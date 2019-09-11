@@ -12,14 +12,26 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
 	glViewport(0, 0, width, height);
 }
 
-void processInput(GLFWwindow* window) {
+void processInput(GLFWwindow* window, Shader* shader = NULL) {
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
+
+	if (shader) {
+		const float alphaDelta = 0.005f;
+		float newAlpha = shader->getFloat("mixAlpha");
+		if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+			newAlpha += alphaDelta;
+		if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+			newAlpha -= alphaDelta;
+
+		if (newAlpha < 0.0f)
+			newAlpha = 0.0f;
+		else if (newAlpha > 1.0f)
+			newAlpha = 1.0f;
+
+		shader->setFloat("mixAlpha", newAlpha);
+	}
 }
-
-static const char* vertexShaderSource = "#version 330 core \n layout (location = 0) in vec3 aPos; \n\n void main(){ gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0); }";
-
-static const char* fragmentShaderSource = "#version 330 core \n out vec4 FragColor; \n uniform vec4 ourColor; void main() {FragColor = ourColor; }";
 
 int main() {
 	//initialize glfw
@@ -48,17 +60,60 @@ int main() {
 	//register window resize callback
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
+	// generate texture object
+	GLuint texture;
+	glGenTextures(1, &texture);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	// set texture wrapping/filtering options (on the currently bound object)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	// load and generate the texture
+	int width, height, nrChannels;
+	stbi_set_flip_vertically_on_load(true);
+	unsigned char* data = stbi_load("C:\\Users\\123\\Desktop\\AlchemixBefore.jpg", &width, &height, &nrChannels, 0);
+	if (data) {
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(texture);
+	}
+	else {
+		cout << "Failed to load texture" << endl;
+	}
+	// fre memory
+	stbi_image_free(data);
+
+	// generate second texture object
+	GLuint texture1;
+	glGenTextures(1, &texture1);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, texture1);
+	// set texture wrapping/filtering options (on the currently bound object)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	// load and generate the texture
+	stbi_set_flip_vertically_on_load(true);
+	data = stbi_load("C:\\Users\\123\\Desktop\\steelTexture.jpg", &width, &height, &nrChannels, 0);
+	if (data) {
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(texture);
+	}
+	else {
+		cout << "Failed to load texture" << endl;
+	}
+	// fre memory
+	stbi_image_free(data);
+
 	//define vertices to draw
 	float vertices[] = {
-		 -0.75f,  0.0f, 0.0f,
-		 -0.5f, 0.5f, 0.0f,
-		 -0.25f, 0.0f, 0.0f
-	};
-	float vertices2[] = {
-		  //positions			//colors
-		  0.25f, 0.0f, 0.0f,	1.0f, 0.0f, 0.0f,
-		  0.5f, -0.5f, 0.0f,	0.0f, 1.0f, 0.0f,
-		  0.75f, 0.0f, 0.0f,	0.0f, 0.0f, 1.0f
+		  //positions				//colors				// texture coords
+		  0.5f, 0.5f, 0.0f,			1.0f, 0.0f, 0.0f,		1.0f, 1.0f,		// top rigth
+		  0.5f, -0.5f, 0.0f,		1.0f, 0.0f, 0.0f,		1.0f, 0.0f,		// bottom right
+		  -0.5f, -0.5f, 0.0f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f,		// bottom left
+		  -0.5f, 0.5f, 0.0f,		0.0f, 0.0f, 1.0f,		0.0f, 1.0f		// top left
 	};
 	unsigned int indices[] = {
 		0, 1, 3,
@@ -66,55 +121,6 @@ int main() {
 	};
 	unsigned int VBO;
 	glGenBuffers(1, &VBO);
-
-
-	//compile vertex shader
-	GLuint vertexShader;
-	vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-	glCompileShader(vertexShader);
-	//verify shader compiled
-	int success;
-	const int infoLogSize = 1024;
-	glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-	if (!success) {
-		char infoLog[infoLogSize];
-		glGetShaderInfoLog(vertexShader, infoLogSize, NULL, infoLog);
-		std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-	}
-
-	//compile fragment shader
-	GLuint fragmentShader;
-	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-	glCompileShader(fragmentShader);
-	//verify shader compiled
-	glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-	if (!success) {
-		char infoLog[infoLogSize];
-		glGetShaderInfoLog(fragmentShader, infoLogSize, NULL, infoLog);
-		std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-	}
-
-	//create shader program
-	GLuint shaderProgram = glCreateProgram();
-	glAttachShader(shaderProgram, vertexShader);
-	glAttachShader(shaderProgram, fragmentShader);
-	glLinkProgram(shaderProgram);
-	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-	if (!success) {
-		char infoLog[infoLogSize];
-		glGetProgramInfoLog(shaderProgram, infoLogSize, NULL, infoLog);
-		std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-	}
-	//tell openGl how to interprete input data
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-
-
-	//clean up
-	glDeleteShader(vertexShader);
-	glDeleteShader(fragmentShader);
 
 	//create element buffer object
 	GLuint EBO;
@@ -132,49 +138,36 @@ int main() {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 	// 4. Set vertex attribute pointers
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
-
-	//create and configure second vertex array object
-	GLuint vao2;
-	glGenVertexArrays(1, &vao2);
-	glBindVertexArray(vao2);
-	GLuint vbo2;
-	glGenBuffers(1, &vbo2);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo2);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices2), vertices2, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) (3 * sizeof(float)));
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+	glEnableVertexAttribArray(2);
 
 	//create shaderProgram
 	Shader sp = Shader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs", "D:\\VSProjects\\OpenGLProject\\OpenGLProject\\FragmenShader.fsf");
 	sp.use();
-	sp.setVec3("offset", 0.2f, 0.0f, 0.0f);
+	sp.setInt("texture1", 0);
+	sp.setInt("texture2", 1);
 
 	//render loop
 	while (!glfwWindowShouldClose(window)) {
 		//input
-		processInput(window);
+		processInput(window, &sp);
 
 		//rendering
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
-		
-		float time = glfwGetTime();
-		float blueVal = (sin(time) + 1.0f) * 0.5f;
-		int vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
-		glUseProgram(shaderProgram);
-		glUniform4f(vertexColorLocation, 0.0f, 1.0f, blueVal, 1.0f);
-
-		glUseProgram(shaderProgram);
-		glBindVertexArray(VAO);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
 
 		sp.use();
-		glBindVertexArray(vao2);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texture);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, texture1);
+
+		glBindVertexArray(VAO);
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 		glBindVertexArray(0);
 
