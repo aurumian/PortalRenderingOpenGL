@@ -5,6 +5,10 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 /* window resize callback
  * tell OpenGL that the rendering window size changed
 */
@@ -151,6 +155,9 @@ int main() {
 	sp.setInt("texture1", 0);
 	sp.setInt("texture2", 1);
 
+	
+
+
 	//render loop
 	while (!glfwWindowShouldClose(window)) {
 		//input
@@ -161,12 +168,27 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		sp.use();
+		// create 4x4 identity matrix
+		glm::mat4 trans = glm::mat4(1.0f);
+		trans = glm::translate(trans, glm::vec3(0.5f, -0.5f, 0.0f));
+		trans = glm::rotate(trans, (float)glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
+		glUniformMatrix4fv(glGetUniformLocation(sp.getProgramID(), "transform"), 1, GL_FALSE, glm::value_ptr(trans));
+
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, texture1);
 
 		glBindVertexArray(VAO);
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+		// create 4x4 identity matrix
+		trans = glm::mat4(1.0f);
+		float scale = glm::sin((float)glfwGetTime()) * 0.4f + 0.6f;
+		trans = glm::translate(trans, glm::vec3(-0.5f, 0.5f, 0.5f));
+		trans = glm::scale(trans, glm::vec3(scale, scale, scale));
+		glUniformMatrix4fv(glGetUniformLocation(sp.getProgramID(), "transform"), 1, GL_FALSE, glm::value_ptr(trans));
+
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 		glBindVertexArray(0);
