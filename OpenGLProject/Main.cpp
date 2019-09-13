@@ -1,25 +1,52 @@
+#define GLM_FORCE_LEFT_HANDED
+
 #include <string>
 #include <iostream>
-#include "Shader.h"
+
 #include "stb_image.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/quaternion.hpp>
 
+#include "Time.h"
+#include "Shader.h"
+#include "Rotator.h"
+#include "FPSCameraController.h"
+
+Camera camera;
+FPSCameraController fpsCam = FPSCameraController(&camera);
+
+static int screenWidth = 800, screenHeight = 600;
 /* window resize callback
  * tell OpenGL that the rendering window size changed
 */
 void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
+	screenWidth = width;
+	screenHeight = height;
 	glViewport(0, 0, width, height);
+	camera.SetAspectRatio((float)width / (float)height);
 }
 
-void processInput(GLFWwindow* window, Shader* shader = NULL) {
-	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-		glfwSetWindowShouldClose(window, true);
+static glm::vec3 eul = glm::vec3(0, 0, 0);
 
+
+
+
+static float oldMouseX;
+static float oldMouseY;
+void processInput(GLFWwindow* window, Shader* shader = NULL) {
+	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+		glfwSetWindowShouldClose(window, true);
+	
+	double mouseX, mouseY;
+	glfwGetCursorPos(window, &mouseX, &mouseY);
+	fpsCam.ProcessInput(window,(float)mouseX - oldMouseX, (float)mouseY - oldMouseY);
+	oldMouseX = (float)mouseX;
+	oldMouseY = (float)mouseY;
+	
 	if (shader) {
 		const float alphaDelta = 0.005f;
 		float newAlpha = shader->getFloat("mixAlpha");
@@ -38,6 +65,7 @@ void processInput(GLFWwindow* window, Shader* shader = NULL) {
 }
 
 int main() {
+
 	//initialize glfw
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -59,10 +87,12 @@ int main() {
 		return -1;
 	}
 
-	//tell OpenGL the size of the rendering window
-	glViewport(0, 0, 800, 600);
 	//register window resize callback
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+	//tell OpenGL the size of the rendering window
+	glViewport(0, 0, screenWidth, screenHeight);
+
+	camera.SetAspectRatio((float)screenWidth / (float)screenHeight);
 
 	// generate texture object
 	GLuint texture;
@@ -114,15 +144,44 @@ int main() {
 	//define vertices to draw
 	float vertices[] = {
 		  //positions				//colors				// texture coords
-		  0.5f, 0.5f, 0.0f,			1.0f, 0.0f, 0.0f,		1.0f, 1.0f,		// top rigth
-		  0.5f, -0.5f, 0.0f,		1.0f, 0.0f, 0.0f,		1.0f, 0.0f,		// bottom right
-		  -0.5f, -0.5f, 0.0f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f,		// bottom left
-		  -0.5f, 0.5f, 0.0f,		0.0f, 0.0f, 1.0f,		0.0f, 1.0f		// top left
+		  0.5f, 0.5f, 0.5f,			1.0f, 0.0f, 0.0f,		1.0f, 1.0f,		// front top rigth
+		  0.5f, -0.5f, 0.5f,		1.0f, 0.0f, 0.0f,		1.0f, 0.0f,		// front bottom right
+		  -0.5f, -0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f,		// front bottom left
+		  -0.5f, 0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 1.0f,		// front top left
+		   //positions				//colors				// texture coords
+		  0.5f, 0.5f, -0.5f,		1.0f, 0.0f, 0.0f,		1.0f, 1.0f,		// back top rigth
+		  0.5f, -0.5f, -0.5f,		1.0f, 0.0f, 0.0f,		1.0f, 0.0f,		// back bottom right
+		  -0.5f, -0.5f, -0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f,		// back bottom left
+		  -0.5f, 0.5f, -0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 1.0f		// back top left
 	};
 	unsigned int indices[] = {
 		0, 1, 3,
-		1, 2, 3
+		1, 2, 3,
+		2, 6, 3,
+		7, 3, 6,
+		7, 4, 5,
+		7, 6, 5,
+		0, 4, 5,
+		0, 1, 5,
+		3, 0, 4,
+		3, 7, 4,
+		2, 1, 5,
+		2, 6, 5
 	};
+
+	glm::vec3 cubePositions[] = {
+		glm::vec3(0.0f,  0.0f,  0.0f),
+		glm::vec3(2.0f,  5.0f, 15.0f),
+		glm::vec3(-1.5f, -2.2f, 2.5f),
+		glm::vec3(-3.8f, -2.0f, 12.3f),
+		glm::vec3(2.4f, -0.4f, 3.5f),
+		glm::vec3(-1.7f,  3.0f, 7.5f),
+		glm::vec3(1.3f, -2.0f, 2.5f),
+		glm::vec3(1.5f,  2.0f, 2.5f),
+		glm::vec3(1.5f,  0.2f, 1.5f),
+		glm::vec3(-1.3f,  1.0f, 1.5f)
+	};
+
 	unsigned int VBO;
 	glGenBuffers(1, &VBO);
 
@@ -156,40 +215,55 @@ int main() {
 	sp.setInt("texture2", 1);
 
 	
+	double mouseX, mouseY;
+	glfwGetCursorPos(window, &mouseX, &mouseY);
+	oldMouseX = (float)mouseX;
+	oldMouseY = (float)mouseY;
 
+	glEnable(GL_DEPTH_TEST);
 
+	Time::Init();
 	//render loop
 	while (!glfwWindowShouldClose(window)) {
+		Time::Update();
+		
 		//input
 		processInput(window, &sp);
 
 		//rendering
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		sp.use();
-		// create 4x4 identity matrix
-		glm::mat4 trans = glm::mat4(1.0f);
-		trans = glm::translate(trans, glm::vec3(0.5f, -0.5f, 0.0f));
-		trans = glm::rotate(trans, (float)glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
-		glUniformMatrix4fv(glGetUniformLocation(sp.getProgramID(), "transform"), 1, GL_FALSE, glm::value_ptr(trans));
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, texture1);
+		glm::mat4 worldToView;
+		glm::mat4 projection;
+
+		worldToView = camera.GetWorldToViewMatrix();
+		projection = camera.GetProjectionMatrix();
+	
+
+		// set uniform matricies
+		sp.setUniform("worldToView", worldToView);
+		sp.setUniform("projection", projection);
 
 		glBindVertexArray(VAO);
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-		// create 4x4 identity matrix
-		trans = glm::mat4(1.0f);
-		float scale = glm::sin((float)glfwGetTime()) * 0.4f + 0.6f;
-		trans = glm::translate(trans, glm::vec3(-0.5f, 0.5f, 0.5f));
-		trans = glm::scale(trans, glm::vec3(scale, scale, scale));
-		glUniformMatrix4fv(glGetUniformLocation(sp.getProgramID(), "transform"), 1, GL_FALSE, glm::value_ptr(trans));
-
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		for (int i = 0; i < 10; i++) {
+			
+			glm::mat4 objectToWorld = glm::mat4(1.0f);
+			objectToWorld = glm::translate(objectToWorld, cubePositions[i]);
+			if (i % 3 == 0)
+				objectToWorld = glm::rotate(objectToWorld, (float)glfwGetTime() * glm::radians(52.0f), glm::normalize(glm::vec3(0.5f, 1.0f, 0.0f)));
+			else
+				objectToWorld = glm::rotate(objectToWorld, -i * glm::radians(52.0f), glm::normalize(glm::vec3(0.5f, 1.0f, 0.0f)));
+			// set uniform matricies
+			sp.setUniform("objectToWorld", objectToWorld);
+			glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+		}
 
 		glBindVertexArray(0);
 

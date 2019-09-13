@@ -5,6 +5,8 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 using namespace std;
 
@@ -103,6 +105,9 @@ public:
 	}
 	void setVec3(const string &name, float x, float y, float z) {
 		glUniform3f(glGetUniformLocation(ID, name.c_str()), x, y, z);
+	}
+	void setUniform(const string &name, const glm::mat4 &matrix) {
+		glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(matrix));
 	}
 
 protected:
