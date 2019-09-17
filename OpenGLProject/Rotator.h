@@ -27,7 +27,12 @@ public:
 
 	glm::vec3 GetRightVector() const;
 
+	// rotates angle degrees around given axis
 	void RotateArounAxis(float angle, const glm::vec3 axis);
+
+	glm::fquat GetQuaterion() const {
+		return quat;
+	}
 
 
 };

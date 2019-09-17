@@ -47,6 +47,12 @@
     <None Include="FragmenShader.fsf">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="BulbVertexShader.vs">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="BulbFragmentShader.fsf">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ShaderProgram.h">
@@ -71,6 +77,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Time.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

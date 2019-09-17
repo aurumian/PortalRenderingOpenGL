@@ -34,13 +34,10 @@ glm::vec3 Rotator::GetEulerRadians() const
 
 glm::vec3 Rotator::GetForwardVector() const
 {
-	glm::vec3 euler = GetEulerRadians();
-	glm::vec3 forw;
-	forw.x = cos(euler.x) * sin(euler.y);
-	forw.y = sin(euler.x);
-	forw.z = cos(euler.x) * cos(euler.y);
-	return forw;
+	return quat * glm::vec3(0.0f, 0.0f, 1.0f);
 }
+
+
 
 glm::vec3 Rotator::GetUpVector() const
 {
@@ -50,15 +47,15 @@ glm::vec3 Rotator::GetUpVector() const
 	up.x = sin(euler.x) * sin(euler.z);
 	up.y = sin(euler.x) * cos(euler.z);
 	up.z = cos(euler.x);
-	return up;
+	return quat * glm::vec3(0.0f, 1.0f, 0.0f);
 }
 
 glm::vec3 Rotator::GetRightVector() const
 {
-	return glm::cross(GetUpVector(),GetForwardVector());
+	return quat * glm::vec3(1.0f, 0.0f, 0.0f);
 }
 
 void Rotator::RotateArounAxis(float angle, const glm::vec3 axis)
 {
-	glm::rotate(quat, angle, glm::normalize(axis));
+	quat = glm::rotate(quat, glm::radians(angle), glm::normalize(axis));
 }

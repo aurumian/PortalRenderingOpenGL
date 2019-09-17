@@ -135,12 +135,15 @@
     <ClCompile Include="Transform.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="BulbFragmentShader.fsf" />
+    <None Include="BulbVertexShader.vs" />
     <None Include="FragmenShader.fsf" />
     <None Include="VertexShader.vs" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="FPSCameraController.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="Rotator.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="ShaderProgram.h" />

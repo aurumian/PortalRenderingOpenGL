@@ -19,6 +19,11 @@
 Camera camera;
 FPSCameraController fpsCam = FPSCameraController(&camera);
 
+// color values
+Transform bulbTransform;
+glm::vec3 lightColor(1.0f, 1.0f, 1.0f);
+glm::vec3 objectColor(1.0f, 0.5f, 0.31f);
+
 static int screenWidth = 800, screenHeight = 600;
 /* window resize callback
  * tell OpenGL that the rendering window size changed
@@ -29,11 +34,6 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
 	glViewport(0, 0, width, height);
 	camera.SetAspectRatio((float)width / (float)height);
 }
-
-static glm::vec3 eul = glm::vec3(0, 0, 0);
-
-
-
 
 static float oldMouseX;
 static float oldMouseY;
@@ -64,7 +64,11 @@ void processInput(GLFWwindow* window, Shader* shader = NULL) {
 	}
 }
 
+
+
 int main() {
+	
+	
 
 	//initialize glfw
 	glfwInit();
@@ -95,10 +99,10 @@ int main() {
 	camera.SetAspectRatio((float)screenWidth / (float)screenHeight);
 
 	// generate texture object
-	GLuint texture;
-	glGenTextures(1, &texture);
+	GLuint diffuseMap;
+	glGenTextures(1, &diffuseMap);
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texture);
+	glBindTexture(GL_TEXTURE_2D, diffuseMap);
 	// set texture wrapping/filtering options (on the currently bound object)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -107,52 +111,79 @@ int main() {
 	// load and generate the texture
 	int width, height, nrChannels;
 	stbi_set_flip_vertically_on_load(true);
-	unsigned char* data = stbi_load("C:\\Users\\123\\Desktop\\AlchemixBefore.jpg", &width, &height, &nrChannels, 0);
+	unsigned char* data = stbi_load("C:\\Users\\123\\Desktop\\container2.jpg", &width, &height, &nrChannels, 0);
 	if (data) {
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(texture);
+		glGenerateMipmap(diffuseMap);
 	}
 	else {
-		cout << "Failed to load texture" << endl;
+		std::cout << "Failed to load texture" << endl;
 	}
-	// fre memory
+	// free memory
 	stbi_image_free(data);
 
 	// generate second texture object
-	GLuint texture1;
-	glGenTextures(1, &texture1);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, texture1);
-	// set texture wrapping/filtering options (on the currently bound object)
+	GLuint specularMap;
+	glGenTextures(1, &specularMap);
+	glBindTexture(GL_TEXTURE_2D, specularMap);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	// load and generate the texture
-	stbi_set_flip_vertically_on_load(true);
-	data = stbi_load("C:\\Users\\123\\Desktop\\steelTexture.jpg", &width, &height, &nrChannels, 0);
+	data = stbi_load("C:\\Users\\123\\Desktop\\container2spec.jpg", &width, &height, &nrChannels, 0);
 	if (data) {
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(texture);
 	}
 	else {
-		cout << "Failed to load texture" << endl;
+		std::cout << "Failed to load texture2" << endl;
 	}
-	// fre memory
+	// free memory
 	stbi_image_free(data);
 
 	//define vertices to draw
 	float vertices[] = {
-		  //positions				//colors				// texture coords
-		  0.5f, 0.5f, 0.5f,			1.0f, 0.0f, 0.0f,		1.0f, 1.0f,		// front top rigth
-		  0.5f, -0.5f, 0.5f,		1.0f, 0.0f, 0.0f,		1.0f, 0.0f,		// front bottom right
-		  -0.5f, -0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f,		// front bottom left
-		  -0.5f, 0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 1.0f,		// front top left
-		   //positions				//colors				// texture coords
-		  0.5f, 0.5f, -0.5f,		1.0f, 0.0f, 0.0f,		1.0f, 1.0f,		// back top rigth
-		  0.5f, -0.5f, -0.5f,		1.0f, 0.0f, 0.0f,		1.0f, 0.0f,		// back bottom right
-		  -0.5f, -0.5f, -0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f,		// back bottom left
-		  -0.5f, 0.5f, -0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 1.0f		// back top left
+	//position			  //normals				//texture coordinates
+	-0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,	0.0f, 0.0f,
+	 0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,	1.0f, 0.0f,
+	 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,	1.0f, 1.0f,
+	 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,	1.0f, 1.0f,
+	-0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,	0.0f, 1.0f,
+	-0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,	0.0f, 0.0f,
+
+	-0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,	0.0f, 0.0f,
+	 0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,	1.0f, 0.0f,
+	 0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,	1.0f, 1.0f,
+	 0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,	1.0f, 1.0f,
+	-0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,	0.0f, 1.0f,
+	-0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,	0.0f, 0.0f,
+
+	-0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,	1.0f, 0.0f,
+	-0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,	1.0f, 1.0f,
+	-0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,	0.0f, 1.0f,
+	-0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,	0.0f, 1.0f,
+	-0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,	0.0f, 0.0f,
+	-0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,	1.0f, 0.0f,
+
+	 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,	1.0f, 0.0f,
+	 0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,	1.0f, 1.0f,
+	 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,	0.0f, 1.0f,
+	 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,	0.0f, 1.0f,
+	 0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,	0.0f, 0.0f,
+	 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,	1.0f, 0.0f,
+
+	-0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,	0.0f, 1.0f,
+	 0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,	1.0f, 1.0f,
+	 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,	1.0f, 0.0f,
+	 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,	1.0f, 0.0f,
+	-0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,	0.0f, 0.0f,
+	-0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,	0.0f, 1.0f,
+
+	-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,	0.0f, 1.0f,
+	 0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,	1.0f, 1.0f,
+	 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,	1.0f, 0.0f,
+	 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,	1.0f, 0.0f,
+	-0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,	0.0f, 0.0f,
+	-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,	0.0f, 1.0f
 	};
 	unsigned int indices[] = {
 		0, 1, 3,
@@ -169,6 +200,7 @@ int main() {
 		2, 6, 5
 	};
 
+	// positions all containers
 	glm::vec3 cubePositions[] = {
 		glm::vec3(0.0f,  0.0f,  0.0f),
 		glm::vec3(2.0f,  5.0f, 15.0f),
@@ -198,29 +230,61 @@ int main() {
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 	// 3. copy index array into an elements buffer
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+		//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+		//glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 	// 4. Set vertex attribute pointers
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+	// 5. enable vertex attribute arrays
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
 	glEnableVertexAttribArray(2);
+
+	// create bulbVAO
+	GLuint bulbVAO;
+	glGenVertexArrays(1, &bulbVAO);
+	glBindVertexArray(bulbVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
 
 	//create shaderProgram
 	Shader sp = Shader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs", "D:\\VSProjects\\OpenGLProject\\OpenGLProject\\FragmenShader.fsf");
 	sp.use();
-	sp.setInt("texture1", 0);
-	sp.setInt("texture2", 1);
 
-	
+	// create bulb shader program
+	Shader bulbSP = Shader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\BulbVertexShader.vs", "D:\\VSProjects\\OpenGLProject\\OpenGLProject\\BulbFragmentShader.fsf");
+
+	// initialize mouse input
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	double mouseX, mouseY;
 	glfwGetCursorPos(window, &mouseX, &mouseY);
 	oldMouseX = (float)mouseX;
 	oldMouseY = (float)mouseY;
 
+	// set light position
+	bulbTransform.position = glm::vec3(2.0f, 2.0f, 5.0f);
+	bulbTransform.rotation.SetEulerAngles(glm::vec3(0.0f, 0.0f, 45.0f));
+	bulbTransform.SetScale(glm::vec3(0.25f, 0.25f, 0.25f));
+
+	{
+		glm::vec3 test = glm::mat3(camera.GetWorldToViewMatrix()) * glm::vec3(0.0f, -1.0f, 0.0f);
+		cout << "viewspace light dir: " << test.x << " " << test.y << " " << test.z << endl;
+	}
+
+	// set camera position
+	{
+		Transform t = camera.GetTransform();
+		t.position = glm::vec3(0.0f, 0.0f, -3.0f);
+		camera.SetTransform(t);
+	}
+
+
+	//open gl render config
 	glEnable(GL_DEPTH_TEST);
+	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
 	Time::Init();
 	//render loop
@@ -231,39 +295,65 @@ int main() {
 		processInput(window, &sp);
 
 		//rendering
-		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		
 
 		sp.use();
 
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texture);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, texture1);
+		// set uniform matricies
 		glm::mat4 worldToView;
 		glm::mat4 projection;
-
 		worldToView = camera.GetWorldToViewMatrix();
 		projection = camera.GetProjectionMatrix();
-	
+		sp.setMat4("worldToView", worldToView);
+		sp.setMat4("projection", projection);
+		// set light properties
+		//lightColor.x = sin(glfwGetTime() * 2.0f);
+		//lightColor.y = sin(glfwGetTime() * 0.7f);
+		//lightColor.z = sin(glfwGetTime() * 1.3f);
+		sp.setVec3("dirLight.color", lightColor * 0.5f + 0.5f);
+		sp.setFloat("dirLight.intensity", 1.0f);
+		sp.setVec3("dirLight.direction", glm::mat3(worldToView) * glm::vec3(0.0f, -1.0f, 0.0f));
+		sp.setFloat("dirLight.ambientStrength", 0.2f);
+		sp.setVec3("pointLight.position", worldToView * glm::vec4(bulbTransform.position, 1.0f));
 
-		// set uniform matricies
-		sp.setUniform("worldToView", worldToView);
-		sp.setUniform("projection", projection);
+
+		// set material properties
+		sp.setInt("material.diffuse", 0);
+		sp.setInt("material.specular", 1);
+		sp.setFloat("material.shiness", 32.0f);
+
+		// bind textures
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, diffuseMap);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, specularMap);
+
+
 
 		glBindVertexArray(VAO);
 		for (int i = 0; i < 10; i++) {
-			
-			glm::mat4 objectToWorld = glm::mat4(1.0f);
-			objectToWorld = glm::translate(objectToWorld, cubePositions[i]);
-			if (i % 3 == 0)
-				objectToWorld = glm::rotate(objectToWorld, (float)glfwGetTime() * glm::radians(52.0f), glm::normalize(glm::vec3(0.5f, 1.0f, 0.0f)));
-			else
-				objectToWorld = glm::rotate(objectToWorld, -i * glm::radians(52.0f), glm::normalize(glm::vec3(0.5f, 1.0f, 0.0f)));
-			// set uniform matricies
-			sp.setUniform("objectToWorld", objectToWorld);
-			glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+			Transform transform;
+			transform.rotation.SetEulerAngles(glm::vec3(i* 20.0f, i*45.0f, 0.0f));
+			transform.position = cubePositions[i];
+			//transform.SetScale(glm::vec3(0.75f, 2.5f, 1.5f));
+
+			glm::mat4 objectToWorld = transform.GetObjectToWorldMatrix();
+			sp.setMat4("objectToWorld", objectToWorld);
+			glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(worldToView * objectToWorld)));
+			sp.SetMat3("normalMatrix", normalMatrix);
+			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
+
+		bulbSP.use();
+		// set uniform values
+		bulbSP.setMat4("worldToView", worldToView);
+		bulbSP.setMat4("projection", projection);
+		bulbSP.setVec3("lightColor", lightColor);
+		glBindVertexArray(bulbVAO);
+		bulbSP.setMat4("objectToWorld", bulbTransform.GetObjectToWorldMatrix());
+		glDrawArrays(GL_TRIANGLES, 0, 36);
 
 		glBindVertexArray(0);
 
