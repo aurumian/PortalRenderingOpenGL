@@ -129,6 +129,7 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="FPSCameraController.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="Rotator.cpp" />
     <ClCompile Include="stb_image.cpp" />
     <ClCompile Include="Time.cpp" />
@@ -143,6 +144,7 @@
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="FPSCameraController.h" />
+    <ClInclude Include="Mesh.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Rotator.h" />
     <ClInclude Include="Shader.h" />

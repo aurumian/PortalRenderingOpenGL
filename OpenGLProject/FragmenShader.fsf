@@ -1,8 +1,8 @@
 #version 330 core
 
 struct Material{
-	sampler2D diffuse;
-	sampler2D specular;
+	sampler2D texture_diffuse0;
+	sampler2D texture_specular0;
 	float shiness;
 };
 
@@ -50,7 +50,7 @@ uniform SpotLight spotLight = {{0.0f, 0.0f, 0.0f}, 0.1f, {1.0f, 1.0f, 1.0f}, 1.0
 out vec4 FragColor;
 
 vec3 CalculateDirLight(DirLight light, vec3 normal, vec3 viewDir){
-	vec3 baseColor = texture(material.diffuse, texCoord).xyz;
+	vec3 baseColor = texture(material.texture_diffuse0, texCoord).xyz;
 	vec3 lightDir = normalize(-light.direction);
 	// ambient shading
 	vec3 ambient = baseColor * light.ambientStrength;
@@ -58,14 +58,14 @@ vec3 CalculateDirLight(DirLight light, vec3 normal, vec3 viewDir){
 	vec3 diffuse = max(dot(normal, lightDir), 0.0f) * baseColor;
 	// specular shading
 	vec3 reflectDir = reflect(-lightDir, normal);
-	vec3 specular = pow(max(dot(viewDir, reflectDir), 0.0f), material.shiness) * texture(material.specular, texCoord).xyz;
+	vec3 specular = pow(max(dot(viewDir, reflectDir), 0.0f), material.shiness) * texture(material.texture_specular0, texCoord).xyz;
 	
 	vec3 lightColor = light.color * light.intensity;
 	return (ambient + diffuse + specular) * lightColor;
 }
 
 vec3 CalculatePointLight(PointLight light, vec3 normal, vec3 viewDir){
-	vec3 baseColor = texture(material.diffuse, texCoord).xyz;
+	vec3 baseColor = texture(material.texture_diffuse0, texCoord).xyz;
 
 	// attenuation
 	float distance = length(light.position - FragPos);
@@ -77,14 +77,14 @@ vec3 CalculatePointLight(PointLight light, vec3 normal, vec3 viewDir){
 	vec3 diffuse = max(dot(normal, lightDir), 0.0f) * baseColor;
 	// spucular shading
 	vec3 reflectDir = reflect(-lightDir, normal);
-	vec3 specular = pow(max(dot(viewDir, reflectDir), 0.0f), material.shiness) * texture(material.specular, texCoord).xyz;
+	vec3 specular = pow(max(dot(viewDir, reflectDir), 0.0f), material.shiness) * texture(material.texture_specular0, texCoord).xyz;
 	
 	vec3 lightColor = light.color * light.intensity;
 	return (ambient + diffuse + specular) * lightColor * attenuation;
 }
 
 vec3 CalculateSpotLight(SpotLight light, vec3 normal, vec3 viewDir){
-	vec3 baseColor = texture(material.diffuse, texCoord).xyz;
+	vec3 baseColor = texture(material.texture_diffuse0, texCoord).xyz;
 
 	vec3 lightDir = normalize(FragPos -light.position);
 	vec3 spotDir = normalize(light.direction);
@@ -103,7 +103,7 @@ vec3 CalculateSpotLight(SpotLight light, vec3 normal, vec3 viewDir){
 	ambient = baseColor * light.ambientStrength;
 	diffuse = max(dot(normal, -lightDir), 0.0f) * baseColor;
 	vec3 reflectDir = reflect(lightDir, normal);
-	specular = pow(max(dot(viewDir, reflectDir), 0.0f), material.shiness) * texture(material.specular, texCoord).xyz;
+	specular = pow(max(dot(viewDir, reflectDir), 0.0f), material.shiness) * texture(material.texture_specular0, texCoord).xyz;
 	
 
 	vec3 lightColor = light.color * light.intensity;

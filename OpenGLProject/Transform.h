@@ -27,6 +27,8 @@ public:
 		scale.z = glm::max(newScale.z, 0.0f);
 	}
 
-	glm::mat4 GetObjectToWorldMatrix() const;
+	glm::mat4 GetTransformMatrix() const;
+
+	glm::mat4 GetInverseTransformMatrix() const;
 };
 

@@ -15,6 +15,7 @@
 #include "Shader.h"
 #include "Rotator.h"
 #include "FPSCameraController.h"
+#include "Mesh.h"
 
 Camera camera;
 FPSCameraController fpsCam = FPSCameraController(&camera);
@@ -99,10 +100,11 @@ int main() {
 	camera.SetAspectRatio((float)screenWidth / (float)screenHeight);
 
 	// generate texture object
-	GLuint diffuseMap;
-	glGenTextures(1, &diffuseMap);
+	Texture diffTex;
+	diffTex.type = "texture_diffuse";
+	glGenTextures(1, &diffTex.id);
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, diffuseMap);
+	glBindTexture(GL_TEXTURE_2D, diffTex.id);
 	// set texture wrapping/filtering options (on the currently bound object)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -114,7 +116,7 @@ int main() {
 	unsigned char* data = stbi_load("C:\\Users\\123\\Desktop\\container2.jpg", &width, &height, &nrChannels, 0);
 	if (data) {
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(diffuseMap);
+		glGenerateMipmap(diffTex.id);
 	}
 	else {
 		std::cout << "Failed to load texture" << endl;
@@ -123,9 +125,10 @@ int main() {
 	stbi_image_free(data);
 
 	// generate second texture object
-	GLuint specularMap;
-	glGenTextures(1, &specularMap);
-	glBindTexture(GL_TEXTURE_2D, specularMap);
+	Texture specTex;
+	specTex.type = "texture_specular";
+	glGenTextures(1, &specTex.id);
+	glBindTexture(GL_TEXTURE_2D, specTex.id);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -133,6 +136,7 @@ int main() {
 	data = stbi_load("C:\\Users\\123\\Desktop\\container2spec.jpg", &width, &height, &nrChannels, 0);
 	if (data) {
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(specTex.id);
 	}
 	else {
 		std::cout << "Failed to load texture2" << endl;
@@ -186,21 +190,29 @@ int main() {
 	-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,	0.0f, 1.0f
 	};
 	unsigned int indices[] = {
-		0, 1, 3,
-		1, 2, 3,
-		2, 6, 3,
-		7, 3, 6,
-		7, 4, 5,
-		7, 6, 5,
-		0, 4, 5,
-		0, 1, 5,
-		3, 0, 4,
-		3, 7, 4,
-		2, 1, 5,
-		2, 6, 5
+		0,	1,	2,
+		3,	4,	5,
+		6,	7,	8,
+		9,	10, 11,
+		12, 13, 14,
+		15, 16, 17,
+		18, 19, 20,
+		21, 22, 23,
+		24, 25, 26,
+		27, 28, 29,
+		30, 31, 32,
+		33, 34, 35
 	};
 
-	// positions all containers
+	Vertex* v = (Vertex*)vertices;
+	vector<Vertex> verts(v, v+36);
+	vector<GLuint> inds(indices, indices + 36);
+	vector<Texture> texs;
+	texs.push_back(diffTex);
+	texs.push_back(specTex);
+	Mesh container = Mesh(verts, inds, texs);
+
+	// positions of all containers
 	glm::vec3 cubePositions[] = {
 		glm::vec3(0.0f,  0.0f,  0.0f),
 		glm::vec3(2.0f,  5.0f, 15.0f),
@@ -214,45 +226,8 @@ int main() {
 		glm::vec3(-1.3f,  1.0f, 1.5f)
 	};
 
-	unsigned int VBO;
-	glGenBuffers(1, &VBO);
-
-	//create element buffer object
-	GLuint EBO;
-	glGenBuffers(1, &EBO);
-
-	//create and configure Vertex Array Object
-	GLuint VAO;
-	glGenVertexArrays(1, &VAO);
-	// 1. bind vao
-	glBindVertexArray(VAO);
-	// 2. copy verticies array into a buffer for OpenGl to use
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-	// 3. copy index array into an elements buffer
-		//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-		//glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-	// 4. Set vertex attribute pointers
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-	// 5. enable vertex attribute arrays
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glEnableVertexAttribArray(2);
-
-	// create bulbVAO
-	GLuint bulbVAO;
-	glGenVertexArrays(1, &bulbVAO);
-	glBindVertexArray(bulbVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-
-
 	//create shaderProgram
 	Shader sp = Shader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs", "D:\\VSProjects\\OpenGLProject\\OpenGLProject\\FragmenShader.fsf");
-	sp.use();
 
 	// create bulb shader program
 	Shader bulbSP = Shader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\BulbVertexShader.vs", "D:\\VSProjects\\OpenGLProject\\OpenGLProject\\BulbFragmentShader.fsf");
@@ -274,7 +249,7 @@ int main() {
 		cout << "viewspace light dir: " << test.x << " " << test.y << " " << test.z << endl;
 	}
 
-	// set camera position
+	// set initial camera position
 	{
 		Transform t = camera.GetTransform();
 		t.position = glm::vec3(0.0f, 0.0f, -3.0f);
@@ -282,9 +257,7 @@ int main() {
 	}
 
 
-	//open gl render config
-	glEnable(GL_DEPTH_TEST);
-	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+	
 
 	Time::Init();
 	//render loop
@@ -295,12 +268,14 @@ int main() {
 		processInput(window, &sp);
 
 		//rendering
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		
+		//open gl render config
+		glEnable(GL_DEPTH_TEST);
+		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+		glEnable(GL_STENCIL_TEST);
+		glStencilMask(0xFF);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 		sp.use();
-
 		// set uniform matricies
 		glm::mat4 worldToView;
 		glm::mat4 projection;
@@ -318,45 +293,59 @@ int main() {
 		sp.setFloat("dirLight.ambientStrength", 0.2f);
 		sp.setVec3("pointLight.position", worldToView * glm::vec4(bulbTransform.position, 1.0f));
 
-
 		// set material properties
-		sp.setInt("material.diffuse", 0);
-		sp.setInt("material.specular", 1);
 		sp.setFloat("material.shiness", 32.0f);
 
-		// bind textures
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, diffuseMap);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, specularMap);
-
-
-
-		glBindVertexArray(VAO);
+		glStencilFunc(GL_ALWAYS, 1, 0xFF);
+		glStencilOp(GL_KEEP, GL_REPLACE, GL_REPLACE);
+		glStencilMask(0xFF);
 		for (int i = 0; i < 10; i++) {
+			if (i % 4 == 0) {
+				glStencilMask(0xFF);
+			}
+			else {
+				glStencilMask(0x00);
+			}
 			Transform transform;
 			transform.rotation.SetEulerAngles(glm::vec3(i* 20.0f, i*45.0f, 0.0f));
 			transform.position = cubePositions[i];
 			//transform.SetScale(glm::vec3(0.75f, 2.5f, 1.5f));
 
-			glm::mat4 objectToWorld = transform.GetObjectToWorldMatrix();
+			glm::mat4 objectToWorld = transform.GetTransformMatrix();
 			sp.setMat4("objectToWorld", objectToWorld);
 			glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(worldToView * objectToWorld)));
 			sp.SetMat3("normalMatrix", normalMatrix);
-			glDrawArrays(GL_TRIANGLES, 0, 36);
+			container.Draw(sp);
 		}
-
+		glStencilMask(0x00);
+		
 		bulbSP.use();
 		// set uniform values
 		bulbSP.setMat4("worldToView", worldToView);
 		bulbSP.setMat4("projection", projection);
 		bulbSP.setVec3("lightColor", lightColor);
-		glBindVertexArray(bulbVAO);
-		bulbSP.setMat4("objectToWorld", bulbTransform.GetObjectToWorldMatrix());
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+		bulbSP.setMat4("objectToWorld", bulbTransform.GetTransformMatrix());
+		container.Draw(bulbSP);
 
 		glBindVertexArray(0);
 
+		// draw outline for a few objects
+		glDisable(GL_DEPTH_TEST);
+		glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+		bulbSP.setVec3("lightColor", 1.0f, 1.0f, 0.0f);
+		for (int i = 0; i < 10; i+=4) {
+			Transform transform;
+			transform.rotation.SetEulerAngles(glm::vec3(i* 20.0f, i*45.0f, 0.0f));
+			transform.position = cubePositions[i];
+			transform.SetScale(glm::vec3(1.1f, 1.1f, 1.1f));
+
+			glm::mat4 objectToWorld = transform.GetTransformMatrix();
+			bulbSP.setMat4("objectToWorld", objectToWorld);
+			glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(worldToView * objectToWorld)));
+			bulbSP.SetMat3("normalMatrix", normalMatrix);
+			container.Draw(bulbSP);
+		}
+		
 		//check all the events and swap the buffers
 		glfwSwapBuffers(window);
 		glfwPollEvents();

@@ -80,7 +80,9 @@ public:
 	}
 	
 	~Shader() {
-		glDeleteProgram(ID);
+		// disabled it cause a parameter passed to function
+		// by value also triggers programm deletion
+		//glDeleteProgram(ID);
 	}
 
 	//use/activate shader
