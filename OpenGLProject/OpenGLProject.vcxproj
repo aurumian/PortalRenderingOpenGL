@@ -138,8 +138,10 @@
   <ItemGroup>
     <None Include="BulbFragmentShader.fsf" />
     <None Include="BulbVertexShader.vs" />
+    <None Include="GrassFragmentShader.fsf" />
     <None Include="FragmenShader.fsf" />
     <None Include="VertexShader.vs" />
+    <None Include="WindowFragmentShader.fsf" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />

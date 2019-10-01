@@ -1,0 +1,17 @@
+#version 330 core
+struct Material{
+	sampler2D texture_diffuse0;
+};
+
+in vec2 texCoord;
+
+uniform Material material;
+
+out vec4 FragColor;
+
+void main() {
+	vec4 color = texture(material.texture_diffuse0, texCoord);
+	if (color.a < 0.1f)
+		discard;
+	FragColor = color;
+}

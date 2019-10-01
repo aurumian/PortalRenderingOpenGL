@@ -56,6 +56,12 @@
     <None Include="BulbFragmentShader.fsf">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="GrassFragmentShader.fsf">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="WindowFragmentShader.fsf">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ShaderProgram.h">
