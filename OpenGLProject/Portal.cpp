@@ -10,23 +10,23 @@ glm::vec4 Portal::GetViewspacePortalEquation(glm::mat4 worldToView) const
 		normal = -normal;
 	return glm::vec4(normal, -glm::dot(normal, q));
 	// this equation can be used to check a point position around this portal:
-	// if (pos, 1.0f) dot equation < 0 when the point is between the camera and the portal plane
+	// if (point.pos, 1.0f) dot equation < 0 when the point is between the camera and the portal plane
 	// else it's between the plane and camera's far plane
 }
 
 
-Tree Portal::GetPortalRenderTree(const list<Portal*>& portals) {
+PortalRenderTree Portal::GetPortalRenderTree(const list<Portal*>& portals) {
 	
 	size_t maxDepth = GetMaxRenderDepth(portals);
 	/* use depth first search to construct the tree
 	*/
 
-	Tree tree;
-	Node* node = new Node();
+	PortalRenderTree tree;
+	PortalRenderTreeNode* node = new PortalRenderTreeNode();
 	tree.root = node;
 
 	for (Portal* p : portals) {
-		Node* n = new Node();
+		PortalRenderTreeNode* n = new PortalRenderTreeNode();
 		n->parent = tree.root;
 		n->portal = p;
 		n->portalMat = p->GetPortallingMat();
@@ -46,12 +46,12 @@ Tree Portal::GetPortalRenderTree(const list<Portal*>& portals) {
 	node = tree.root->firstChild;
 	node->stencil = 1;
 	while (node != tree.root) {
-		Node* nod = node;
+		PortalRenderTreeNode* nod = node;
 		if (depth < maxDepth)
 			for (Portal* p : node->portal->cbsPortals) {
 				if (numPortals > maxNumPortalRenderings)
 					break;
-				Node* n = new Node();
+				PortalRenderTreeNode* n = new PortalRenderTreeNode();
 				n->parent = node;
 				n->portal = p;
 				n->portalMat = node->portalMat * p->GetPortallingMat();

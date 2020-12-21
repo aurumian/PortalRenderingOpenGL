@@ -595,6 +595,17 @@ int main() {
 	// 
 	player.onTriggerHitCallback = OnPlayerTriggerEnter;
 
+	// prepare a PortalRenderTree for easier portal rendering
+	// it also optimizes calculations since it precomputes portalling matricies
+	list<Portal*> pl;
+	pl.push_back(&p1);
+	pl.push_back(&p2);
+	pl.push_back(&p3);
+	pl.push_back(&p4);
+	pl.push_back(&p5);
+	pl.push_back(&p7);
+	PortalRenderTree tree = Portal::GetPortalRenderTree(pl);
+
 	Time::Init();
 	//render loop
 	while (!glfwWindowShouldClose(window)) {
@@ -682,16 +693,9 @@ int main() {
 				}
 			}
 			
-			list<Portal*> pl;
-			pl.push_back(&p1);
-			pl.push_back(&p2);
-			pl.push_back(&p3);
-			pl.push_back(&p4);
-			pl.push_back(&p5);
-			pl.push_back(&p7);
-			Tree tree = Portal::GetPortalRenderTree(pl);
+			
 
-			// draw portal(s) - breadth first
+			// draw portal(s)
 			{
 				size_t renderDepth = 0;
 

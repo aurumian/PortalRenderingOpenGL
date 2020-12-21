@@ -2,7 +2,7 @@
 
 #include "Actor.h"
 
-class Tree;
+class PortalRenderTree;
 
 typedef uint8_t stencil_t;
 
@@ -29,7 +29,7 @@ public:
 
 	glm::mat4 GetPortallingMat() const;
 
-	static Tree GetPortalRenderTree(const list<Portal*>& portals);
+	static PortalRenderTree GetPortalRenderTree(const list<Portal*>& portals);
 
 	static size_t GetMaxRenderDepth(const list<Portal*>& portals);
 
@@ -37,18 +37,18 @@ private:
 	size_t maxRenderDepth = 1;
 };
 
-class Node {
+class PortalRenderTreeNode {
 public:
 	Portal* portal = nullptr;
-	Node* firstChild = nullptr;
-	Node* right = nullptr;
-	Node* parent = nullptr;
+	PortalRenderTreeNode* firstChild = nullptr;
+	PortalRenderTreeNode* right = nullptr;
+	PortalRenderTreeNode* parent = nullptr;
 	uint8_t stencil = 0;
 	glm::mat4 portalMat = glm::mat4(1.0f);
 };
 
-class Tree {
+class PortalRenderTree {
 public:
-	Node* root;
+	PortalRenderTreeNode* root;
 };
 
