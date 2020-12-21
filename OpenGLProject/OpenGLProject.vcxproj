@@ -140,6 +140,7 @@
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="Physics.cpp" />
     <ClCompile Include="Player.cpp" />
+    <ClCompile Include="Portal.cpp" />
     <ClCompile Include="Rotator.cpp" />
     <ClCompile Include="Component.cpp" />
     <ClCompile Include="ShaderCompiler.cpp" />
@@ -167,6 +168,7 @@
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="Physics.h" />
     <ClInclude Include="Player.h" />
+    <ClInclude Include="Portal.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Rotator.h" />
     <ClInclude Include="Shader.h" />

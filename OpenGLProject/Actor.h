@@ -3,6 +3,7 @@
 #include "Transform.h"
 #include "Mesh.h"
 #include "Physics.h"
+#include <list>
 
 class Component;
 class MeshRenderer;
@@ -32,28 +33,3 @@ protected:
 
 	vector<Component*> components;
 };
-
-class Portal : public Actor
-{
-public:
-	uint8_t stencilVal;
-	uint8_t prevStencil;
-	// portals that can be seen through this portal
-	vector<Portal*> cbsPortals;
-
-	Portal* dest;
-
-	size_t GetMaxRenderDepth() { return maxRenderDepth; }
-
-	void SetMaxRenderDepth(size_t v) {
-		if (v > 0)
-			maxRenderDepth = v;
-	}
-
-	glm::vec4 GetViewspacePortalEquation(glm::mat4 worldToView) const;
-
-private:
-	size_t maxRenderDepth = 1;
-};
-
-

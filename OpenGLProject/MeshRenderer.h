@@ -2,22 +2,22 @@
 #include "Actor.h"
 
 class Mesh;
-class Shader;
+class Material;
 
 class MeshRenderer : public Component{
 public:
-	MeshRenderer(Mesh* mesh, Shader* shader) {
+	MeshRenderer(Mesh* mesh, Material* material) {
 		this->mesh = mesh;
-		this->shader = shader;
+		this->material = material;
 	}
 
 	void Draw();
 
-	Shader* GetShader() {
-		return shader;
+	Material* GetMaterial() {
+		return material;
 	}
 
 private:
-	Shader* shader;
+	Material* material;
 	Mesh* mesh;
 };

@@ -1,9 +1,10 @@
 #pragma once
 #include <vector>
+#include "Mesh.h"
 
 class Shader;
 class MeshRenderer;
-class Texture;
+
 
  enum FaceCulling {
 	NO_CULL,
@@ -15,15 +16,19 @@ class Material
 public:
 	Material();
 	Material(Shader* shader);
+	Material(Shader* shader, std::vector<Texture> textures);
 	~Material();
 
 	FaceCulling culling = FaceCulling::NO_CULL;
 
 	Shader* GetShader() { return shader; }
 
-private:
+	std::vector<Texture> textures;
 	Shader* shader;
-	std::vector<Texture*> textures;
+
+private:
+	
+	
 	friend class MeshRenderer;
 };
 

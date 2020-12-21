@@ -13,7 +13,7 @@ protected:
 	Transform transform;
 	float fov = 45.0f;
 	float aspectRatio = 16.0f/9.0f;
-	float nearClippingPlane = 0.01f;
+	float nearClippingPlane = 0.001f;
 	float farClippingPlane = 100.0f;
 	RenderMode renderMode = RenderMode::PERSPECTIVE;
 public:

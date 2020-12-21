@@ -15,8 +15,10 @@ public:
 
 	Mesh GetMesh(size_t meshIndex);
 
-private:
 	void OpenFile(std::string filepath);
+
+private:
+	
 
 	Assimp::Importer importer;
 };
