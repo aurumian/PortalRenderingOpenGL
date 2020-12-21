@@ -1,8 +1,8 @@
 #pragma once
-#define GLM_FORCE_LEFT_HANDED
-#include <glm/glm.hpp>
-#include <glm/gtc/quaternion.hpp>
+
+#include "MathInclude.h"
 #include "Rotator.h"
+#include <string>
 
 class Transform
 {
@@ -30,5 +30,9 @@ public:
 	glm::mat4 GetTransformMatrix() const;
 
 	glm::mat4 GetInverseTransformMatrix() const;
+
+	glm::mat3 GetNormalMatrix() const;
+
+	std::string ToString() const;
 };
 

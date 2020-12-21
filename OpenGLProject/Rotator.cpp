@@ -10,6 +10,11 @@ Rotator::Rotator(const glm::vec3 eulerAngles)
 	SetEulerAngles(eulerAngles);
 }
 
+Rotator::Rotator(const glm::fquat quat)
+{
+	this->quat = quat;
+}
+
 
 Rotator::~Rotator()
 {

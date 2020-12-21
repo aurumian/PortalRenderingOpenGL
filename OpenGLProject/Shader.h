@@ -17,6 +17,8 @@ public:
 		return ID;
 	}
 
+	Shader(GLuint id) { ID = id; };
+
 	// reads and builds the shader
 	Shader(const GLchar* vertexPath, const GLchar* fragmentPath) {
 		// get source code from files
@@ -110,6 +112,9 @@ public:
 	}
 	void setVec3(const string &name, glm::vec3 vec) {
 		glUniform3f(glGetUniformLocation(ID, name.c_str()), vec.x, vec.y, vec.z);
+	}
+	void setVec4(const string& name, glm::vec4 vec) {
+		glUniform4f(glGetUniformLocation(ID, name.c_str()), vec.x, vec.y, vec.z, vec.w);
 	}
 	void setMat4(const string &name, const glm::mat4 &matrix) {
 		glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(matrix));

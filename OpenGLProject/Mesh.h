@@ -20,9 +20,7 @@ struct Texture {
 class Mesh
 {
 public:
-	Mesh(vector<Vertex> vertices, vector<GLuint> indicies, vector<Texture> textures);
-	
-	void Draw(Shader shader);
+	Mesh(vector<Vertex> vertices, vector<GLuint> indicies);
 
 	~Mesh();
 
@@ -30,8 +28,10 @@ private:
 	GLuint VAO, VBO, EBO;
 	vector<Vertex> vertices;
 	vector<GLuint> indices;
-	vector<Texture> textures;
 
 	void SetupMesh();
-};
 
+	bool setUp = false;
+
+	friend class MeshRenderer;
+};

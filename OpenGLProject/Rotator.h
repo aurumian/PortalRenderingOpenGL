@@ -1,7 +1,5 @@
 #pragma once
-#define GLM_FORCE_LEFT_HANDED
-#include <glm/glm.hpp>
-#include <glm/gtc/quaternion.hpp>
+#include "MathInclude.h"
 
 class Rotator
 {
@@ -12,6 +10,7 @@ protected:
 public: 
 	Rotator();
 	Rotator(const glm::vec3 eulerAngles);
+	Rotator(const glm::fquat quat);
 	~Rotator();
 
 	// set rotation with euler angles in degrees
