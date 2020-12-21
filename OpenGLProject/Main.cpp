@@ -22,6 +22,8 @@
 #include "Physics.h"
 #include "MeshRenderer.h"
 
+#include "ShaderCompiler.h"
+
 using namespace std;
 
 const int MAX_PORTAL_DEPTH = 4;
@@ -356,32 +358,39 @@ int main() {
 	texs.push_back(windowTex);
 	Mesh windowMesh = Mesh(verts, inds);
 
-
+	ShaderCompiler comp;
 	//create shaderProgram
-	Shader sp = Shader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs", "D:\\VSProjects\\OpenGLProject\\OpenGLProject\\FragmenShader.fsf");
+	comp.AddFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\FragmenShader.fsf");
+	comp.AddVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
+	Shader* sp = comp.Compile();
 
 	// create bulb shader program
-	Shader bulbSP = Shader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\BulbVertexShader.vs", "D:\\VSProjects\\OpenGLProject\\OpenGLProject\\BulbFragmentShader.fsf");
+	comp.AddFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\BulbFragmentShader.fsf");
+	comp.AddVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
+	Shader* bulbSP = comp.Compile();
 
 	// create grass shader program
-	Shader grassShader = Shader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs", "D:\\VSProjects\\OpenGLProject\\OpenGLProject\\GrassFragmentShader.fsf");
+	comp.AddFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\GrassFragmentShader.fsf");
+	comp.AddVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
+	Shader* grassShader = comp.Compile();
 
 	// create window shader program
-	Shader windowShader = Shader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs", "D:\\VSProjects\\OpenGLProject\\OpenGLProject\\WindowFragmentShader.fsf");
-
+	comp.AddVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
+	comp.AddFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\WindowFragmentShader.fsf");
+	Shader* windowShader = comp.Compile();
 
 	// Create renderers
-	crateRenderer = new MeshRenderer(&container, &sp);
-	floorRenderer = new MeshRenderer(&floor, &sp);
-	grassRenderer = new MeshRenderer(&grass, &grassShader);
-	bulbRenderer = new MeshRenderer(&container, &bulbSP);
-	windowRenderer = new MeshRenderer(&windowMesh, &windowShader);
+	crateRenderer = new MeshRenderer(&container, sp);
+	floorRenderer = new MeshRenderer(&floor, sp);
+	grassRenderer = new MeshRenderer(&grass, grassShader);
+	bulbRenderer = new MeshRenderer(&container, bulbSP);
+	windowRenderer = new MeshRenderer(&windowMesh, windowShader);
 
 	vector<Portal*> portals;
 	portals.push_back(&p1);
 	portals.push_back(&p2);
 	for (Portal* p : portals) {
-		p->AddComponent(new MeshRenderer(&windowMesh, &bulbSP));
+		p->AddComponent(new MeshRenderer(&windowMesh, bulbSP));
 	}
 
 	// Create portals
@@ -445,7 +454,7 @@ int main() {
 		Time::Update();
 		
 		//input
-		processInput(window, &sp);
+		processInput(window, sp);
 
 		//rendering
 		{
@@ -535,7 +544,7 @@ int main() {
 
 
 				// set some shader values that don't change during the frame
-				Shader* sp = &bulbSP;
+				Shader* sp = bulbSP;
 				sp->setMat4("projection", projection);
 				glClear(GL_STENCIL_BUFFER_BIT);
 				glEnable(GL_STENCIL_TEST);
