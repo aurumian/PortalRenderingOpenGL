@@ -11,8 +11,8 @@ public:
 	ShaderCompiler();
 	~ShaderCompiler();
 
-	void AddVertexShader(const GLchar* filepath);
-	void AddFragmentShader(const GLchar* filepath);
+	void SetVertexShader(const GLchar* filepath);
+	void SetFragmentShader(const GLchar* filepath);
 
 	Shader* Compile() const;
 

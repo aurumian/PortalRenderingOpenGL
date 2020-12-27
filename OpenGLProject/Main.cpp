@@ -1,5 +1,4 @@
 
-
 #include <string>
 #include <iostream>
 #include <algorithm>
@@ -28,14 +27,33 @@
 
 using namespace std;
 
+// constants
 const int MAX_PORTAL_DEPTH = 2;
+const GLuint SHADOW_MAP_SIZE = 2048;
 
-void DrawScene();
+struct DirLight {
+	Transform transform;
+	float intensity = 1.0f;
+
+	// shadow rendering parameters
+	float nearPlane = 1.0f;
+	float farPlane = 20.0f;
+	// hieght and width of the rendering frustrum
+	float extent = 20.0f;
+};
+
+// if matOverride is not nullptr DrawScene doesn't change shader that is used
+// nor does it set any shader parameters except objectToWorld matrices
+void DrawScene(Material* matOverride = nullptr);
 /*@pre Stencil testing must be enabled
   @pre Stencil buffer should be cleared with 0's
  */
 void PrepareDrawPortal(const Portal& p, const glm::mat4& worldToView);
 glm::mat4 DrawPortal(const Portal& p1, const Portal& p2, const glm::mat4& worldToView);
+
+void ConfigureFBOAndTextureForShadowmap(GLuint& fbo, GLuint& tex);
+void RenderShadowmap(GLuint fbo, DirLight& light);
+glm::mat4 GetLightSpaceMatrix(const DirLight& light);
 
 void UpdateStencil(const list<Portal*>& pl, unordered_map<const Portal*, glm::mat4>& wtvs);
 
@@ -45,6 +63,10 @@ Camera camera;
 Player player(&camera);
 PlayerController pc(&player);
 Physics physics;
+DirLight light;
+
+Shader* shadowmapShader;
+GLuint shadowMap;
 
 // color values
 Transform bulbTransform;
@@ -141,6 +163,10 @@ MeshRenderer* bulbRenderer;
 MeshRenderer* monkeyRenderer;
 MeshRenderer* sceneRenderer;
 MeshRenderer* scene2Renderer;
+MeshRenderer* fsqRenderer;
+
+// Materials
+Material* smMat;
 
 // Portals
 Portal p1;
@@ -163,7 +189,7 @@ int main() {
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	//create window
-	GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(800, 600, "OpenGLProject", NULL, NULL);
 	if (window == NULL) {
 		std::cout << "Failed to create GLFW window" << std::endl;
 		glfwTerminate();
@@ -368,6 +394,15 @@ int main() {
 	sceneMat.textures = texs;
 	Mesh portalPlane = Mesh(verts, inds);
 
+
+	// create fullscreen quad mesh
+	/*verts.clear();
+	verts.push_back({ glm::vec3(1.0f, -1.0f, 0.0f), glm::vec3(0,0,-1), glm::vec2(1, 0) });
+	verts.push_back({ glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(0,0,-1), glm::vec2(1, 1) });
+	verts.push_back({ glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(0,0,-1), glm::vec2(0, 1) });
+	verts.push_back({ glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0,0,-1), glm::vec2(0, 0) });*/
+	Mesh fsq = Mesh(verts, inds);
+
 	// create window mesh
 	texs.clear();
 	texs.push_back(windowTex);
@@ -377,24 +412,32 @@ int main() {
 
 	ShaderCompiler comp;
 	//create shaderProgram
-	comp.AddFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\FragmenShader.fsf");
-	comp.AddVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
+	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\FragmenShader.fsf");
+	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
 	Shader* sp = comp.Compile();
 
 	// create bulb shader program
-	comp.AddFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\BulbFragmentShader.fsf");
-	comp.AddVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
+	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\BulbFragmentShader.fsf");
+	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
 	Shader* bulbSP = comp.Compile();
 
 	// create grass shader program
-	comp.AddFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\GrassFragmentShader.fsf");
-	comp.AddVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
+	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\GrassFragmentShader.fsf");
+	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
 	Shader* grassShader = comp.Compile();
 
 	// create window shader program
-	comp.AddVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
-	comp.AddFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\WindowFragmentShader.fsf");
+	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
+	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\WindowFragmentShader.fsf");
 	Shader* windowShader = comp.Compile();
+
+	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\smVertex.vs");
+	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\smFragment.fsf");
+	shadowmapShader = comp.Compile();
+
+	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\fsqVertex.vs");
+	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\fsqFragment.fsf");
+	Shader* fsqShader = comp.Compile();
 
 	contMat.shader = sp;
 	sceneMat.shader = grassShader;
@@ -421,6 +464,9 @@ int main() {
 	monkeyRenderer = new MeshRenderer(&monkey, &contMat);
 	sceneRenderer = new MeshRenderer(&portalScene, &sceneMat);
 	scene2Renderer = new MeshRenderer(&portalScene2, &sceneMat);
+	fsqRenderer = new MeshRenderer(&fsq, new Material(fsqShader));
+
+	smMat = new Material(shadowmapShader);
 
 	vector<Portal*> portals;
 	portals.push_back(&p1);
@@ -606,6 +652,15 @@ int main() {
 	pl.push_back(&p7);
 	PortalRenderTree tree = Portal::GetPortalRenderTree(pl);
 
+	GLuint fbo;
+
+	ConfigureFBOAndTextureForShadowmap(fbo, shadowMap);
+	
+	// configure dir light
+	light.transform.position = glm::vec3(6.0f, 8.2f, 6.0f);
+	light.transform.rotation = glm::vec3(-126.295, -41.2203, 180);
+
+
 	Time::Init();
 	//render loop
 	while (!glfwWindowShouldClose(window)) {
@@ -625,12 +680,33 @@ int main() {
 			glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+			// render shadowmap
+			RenderShadowmap(fbo, light);
+
+		
+
+
 			// draw the scene the first time
-			worldToView = camera.GetWorldToViewMatrix();
-			projection = camera.GetProjectionMatrix();
-			DrawScene();
+			//if (false)
+			{
+				worldToView = camera.GetWorldToViewMatrix();
+				projection = camera.GetProjectionMatrix();
+				DrawScene();
+			}
+
+			// draw shadowmap on fsq
+			if (false) 
+			{
+				glDisable(GL_DEPTH_TEST);
+				glBindTexture(GL_TEXTURE_2D, shadowMap);
+				fsqRenderer->GetMaterial()->shader->use();
+				fsqRenderer->GetMaterial()->shader->setInt("screenTex", 0);
+				fsqRenderer->Draw();
+				glEnable(GL_DEPTH_TEST);
+			}
 
 			// divide stencil range by portals
+			//if (false)
 			{
 				vector<Portal*> pv;
 				pv.push_back(&p1);
@@ -696,6 +772,7 @@ int main() {
 			
 
 			// draw portal(s)
+			//if (false)
 			{
 				size_t renderDepth = 0;
 
@@ -857,142 +934,116 @@ glm::mat4 DrawPortal(const Portal& p1, const Portal& p2, const glm::mat4& worldT
 
 
 
-void DrawScene() {
-	Shader* sp = crateRenderer->GetMaterial()->GetShader();
-	// set light properties
-	//lightColor.x = sin(glfwGetTime() * 2.0f);
-	//lightColor.y = sin(glfwGetTime() * 0.7f);
-	//lightColor.z = sin(glfwGetTime() * 1.3f);
-	
-	
-	sp->use();
+void DrawScene(Material* matOverride) {
+	Shader* sp = nullptr;
 
-	// draw crates
-	sp->setMat4("worldToView", worldToView);
-	sp->setMat4("projection", projection);
-	/*for (int i = 0; i < 10; i++) {
-		Transform transform;
-		transform.rotation.SetEulerAngles(glm::vec3(i* 20.0f, i*45.0f, 0.0f));
-		transform.position = cubePositions[i];
-		//transform.SetScale(glm::vec3(0.75f, 2.5f, 1.5f));
-
-		glm::mat4 objectToWorld = transform.GetTransformMatrix();
-		crateRenderer->GetMaterial()->GetShader()->setMat4("objectToWorld", objectToWorld);
-		glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(worldToView * objectToWorld)));
-		sp->SetMat3("normalMatrix", normalMatrix);
-		crateRenderer->Draw();
-	}*/
-
-	// draw floor
-	/*sp = floorRenderer->GetMaterial()->GetShader();
-	sp->use();
-	Transform transform;
-	transform.position = glm::vec3(0, 0.0f, 0.0f);
-	//transform.rotation = glm::vec3(180.0f, 0.0f, 0.0f);
-	transform.SetScale(glm::vec3(10));
-	glm::mat4 objectToWorld = transform.GetTransformMatrix();
-	sp->setMat4("objectToWorld", objectToWorld);
-	glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(worldToView * objectToWorld)));
-	sp->SetMat3("normalMatrix", normalMatrix);
-	floorRenderer->Draw();*/
-
-	// draw grass
-	/*sp = grassRenderer->GetShader();
-	sp->use();
-	sp->setMat4("worldToView", worldToView);
-	sp->setMat4("projection", projection);
-	for (int i = 0; i < 8; i++) {
-		Transform transform;
-		transform.rotation.SetEulerAngles(glm::vec3(0.0f, i*17.5f, 0.0f));
-		transform.position = grassPositions[i];
-
-		glm::mat4 objectToWorld = transform.GetTransformMatrix();
-		sp->setMat4("objectToWorld", objectToWorld);
-		glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(worldToView * objectToWorld)));
-		sp->SetMat3("normalMatrix", normalMatrix);
-		grassRenderer->Draw();
-	}*/
+	if (matOverride != nullptr)
+		sp = matOverride->GetShader();
 
 	// draw bulb
-	sp = bulbRenderer->GetMaterial()->GetShader();
-	sp->use();
-	// set uniform values
-	sp->setMat4("worldToView", worldToView);
-	sp->setMat4("projection", projection);
-	sp->setVec3("lightColor", lightColor);
-	sp->setMat4("objectToWorld", bulbTransform.GetTransformMatrix());
-	bulbRenderer->Draw();
-
-	// draw monkey
-	sp = monkeyRenderer->GetMaterial()->GetShader();
-	sp->use();
-	sp->setMat4("worldToView", worldToView);
-	sp->setMat4("projection", projection);
-	sp->setVec3("lightColor", lightColor);
-	Transform t;
-	t.position = { 0.0f, 1.0f, 5.0f };
-	t.SetScale(glm::vec3(1.0f, 1.0f, 1.0f) * 0.2f);
-	sp->setMat4("objectToWorld", t.GetTransformMatrix());
-	monkeyRenderer->Draw();
-
-	// draw portal scenes
-	sp->setVec3("dirLight.color", lightColor * 0.5f + 0.5f);
-	sp->setFloat("dirLight.intensity", 2.0f);
-	sp->setVec3("dirLight.direction", glm::mat3(worldToView) * glm::vec3(0.0f, -1.0f, 0.0f));
-	sp->setFloat("dirLight.ambientStrength", 0.2f);
-	sp->setVec3("pointLight.position", worldToView * glm::vec4(bulbTransform.position, 1.0f));
-	sp->setFloat("material.shiness", 32.0f);
-	sp = sceneRenderer->GetMaterial()->GetShader();
-	sp->use();
-	sp->setMat4("worldToView", worldToView);
-	sp->setMat4("projection", projection);
-	sp->setVec3("lightColor", lightColor);
-	t.position = { 0.0f, 0.0f, 0.0f };
-	t.SetScale(glm::vec3(1.0f, 1.0f, 1.0f) * 0.5f);
-	sp->setMat4("objectToWorld", t.GetTransformMatrix());
-	glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(worldToView * t.GetTransformMatrix())));
-	sp->SetMat3("normalMatrix", normalMatrix);
-	sceneRenderer->Draw();
-	
-	sp = sceneRenderer->GetMaterial()->GetShader();
-	sp->use();
-	sp->setMat4("worldToView", worldToView);
-	sp->setMat4("projection", projection);
-	sp->setVec3("lightColor", lightColor);
-	t.position = { 0.0f, 0.0f, 50.0f };
-	t.SetScale(glm::vec3(1.0f, 1.0f, 1.0f) * 0.5f);
-	sp->setMat4("objectToWorld", t.GetTransformMatrix());
-	normalMatrix = glm::transpose(glm::inverse(glm::mat3(worldToView * t.GetTransformMatrix())));
-	sp->SetMat3("normalMatrix", normalMatrix);
-	scene2Renderer->Draw();
-
-	// draw windows
-	if (false)
-	{
-		sp = windowRenderer->GetMaterial()->GetShader();
+	if (matOverride == nullptr) {
+		sp = bulbRenderer->GetMaterial()->GetShader();
 		sp->use();
 		sp->setMat4("worldToView", worldToView);
 		sp->setMat4("projection", projection);
-		// sort the positions to draw the farthest first
-		sort(windowPositions, windowPositions + 4,
-			[](const glm::vec3& x, const glm::vec3& y) {
-			float xDist = glm::length(camera.GetTransform().position - x);
-			float yDist = glm::length(camera.GetTransform().position - y);
-			return xDist > yDist;
-		}
-		);
-		for (int i = 0; i < 4; i++) {
-			Transform transform;
-			//transform.rotation.SetEulerAngles(glm::vec3(0.0f, i*17.5f, 0.0f));
-			transform.position = windowPositions[i];
-
-			glm::mat4 objectToWorld = transform.GetTransformMatrix();
-			sp->setMat4("objectToWorld", objectToWorld);
-			glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(worldToView * objectToWorld)));
-			sp->SetMat3("normalMatrix", normalMatrix);
-			windowRenderer->Draw();
-		}
+		sp->setVec3("lightColor", lightColor);
+		sp->setMat4("lightSpaceMatrix", GetLightSpaceMatrix(light));
+		
 	}
+	sp->setMat4("objectToWorld", bulbTransform.GetTransformMatrix());
+	bulbRenderer->Draw(matOverride);
+
+	// draw with main shader or override shader:
+	{
+		// draw monkey
+		if (matOverride == nullptr) {
+			sp = monkeyRenderer->GetMaterial()->GetShader();
+			sp->use();
+			sp->setMat4("worldToView", worldToView);
+			sp->setMat4("projection", projection);
+			sp->setMat4("lightSpaceMatrix", GetLightSpaceMatrix(light));
+			sp->setVec3("lightColor", lightColor);
+			sp->setVec3("dirLight.color", lightColor * 0.5f + 0.5f);
+			sp->setFloat("dirLight.intensity", 2.0f);
+			sp->setVec3("dirLight.direction", glm::mat3(worldToView) * light.transform.rotation.GetForwardVector());
+			sp->setFloat("dirLight.ambientStrength", 0.2f);
+			sp->setVec3("pointLight.position", worldToView * glm::vec4(bulbTransform.position, 1.0f));
+			sp->setFloat("material.shiness", 32.0f);
+			glActiveTexture(GL_TEXTURE2);
+			sp->setInt("shadowMap", 2);
+			glBindTexture(GL_TEXTURE_2D, shadowMap);
+		}
+		Transform t;
+		t.position = { 0.0f, 1.0f, 5.0f };
+		t.SetScale(glm::vec3(1.0f, 1.0f, 1.0f) * 0.2f);
+		sp->setMat4("objectToWorld", t.GetTransformMatrix());
+		monkeyRenderer->Draw(matOverride);
+
+		// draw scenes
+		t.position = { 0.0f, 0.0f, 0.0f };
+		t.SetScale(glm::vec3(1.0f, 1.0f, 1.0f) * 0.5f);
+		sp->setMat4("objectToWorld", t.GetTransformMatrix());
+		if (matOverride == nullptr) {
+			glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(worldToView * t.GetTransformMatrix())));
+			sp->SetMat3("normalMatrix", normalMatrix);
+		}
+		sceneRenderer->Draw(matOverride);
+
+		t.position = { 0.0f, 0.0f, 50.0f };
+		t.SetScale(glm::vec3(1.0f, 1.0f, 1.0f) * 0.5f);
+		sp->setMat4("objectToWorld", t.GetTransformMatrix());
+		if (matOverride == nullptr) {
+			glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(worldToView * t.GetTransformMatrix())));
+			sp->SetMat3("normalMatrix", normalMatrix);
+		}
+		scene2Renderer->Draw(matOverride);
+	}
+}
+
+void ConfigureFBOAndTextureForShadowmap(GLuint& fbo, GLuint& tex) {
+	glGenFramebuffers(1, &fbo);
+
+	glGenTextures(1, &tex);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+		SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tex, 0);
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+}	
+
+void RenderShadowmap(GLuint fbo, DirLight& light) {
+	glViewport(0, 0, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	shadowmapShader->use();
+	shadowmapShader->setMat4("lightSpaceMatrix", GetLightSpaceMatrix(light));
+	//shadowmapShader->setMat4("lightSpaceMatrix", camera.GetProjectionMatrix() * camera.GetWorldToViewMatrix());
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_FRONT);
+	DrawScene(smMat);
+	glDisable(GL_CULL_FACE);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0, screenWidth, screenHeight);
+}
+
+glm::mat4 GetLightSpaceMatrix(const DirLight& light) {
+	glm::mat4 lv = light.transform.GetInverseTransformMatrix();
+	glm::mat4 lp = glm::ortho(-light.extent, light.extent, -light.extent, light.extent,
+		light.nearPlane, light.farPlane);
+	return lp * lv;
 }
 
 

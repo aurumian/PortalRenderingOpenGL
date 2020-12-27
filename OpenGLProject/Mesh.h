@@ -20,16 +20,16 @@ struct Texture {
 class Mesh
 {
 public:
-	Mesh(vector<Vertex> vertices, vector<GLuint> indicies);
+	Mesh(const vector<Vertex>& vertices, const vector<GLuint>& indicies);
 
 	~Mesh();
+
+	void SetupMesh();
 
 private:
 	GLuint VAO, VBO, EBO;
 	vector<Vertex> vertices;
 	vector<GLuint> indices;
-
-	void SetupMesh();
 
 	bool setUp = false;
 

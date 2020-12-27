@@ -1,0 +1,12 @@
+#version 330 core
+
+uniform sampler2D screenTex;
+
+in vec2 TexCoords;
+out vec4 FragColor;
+void main(){
+	//float depth = 
+	FragColor = texture(screenTex, TexCoords);
+	//vec2 coords = gl_FragCoord.xy/2 + 0.5;
+	//FragColor = vec4(TexCoords.x, 0.0f,0.0f, 1.0f);
+}

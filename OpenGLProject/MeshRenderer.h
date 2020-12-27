@@ -13,6 +13,8 @@ public:
 
 	void Draw();
 
+	void Draw(Material* mat);
+
 	Material* GetMaterial() {
 		return material;
 	}

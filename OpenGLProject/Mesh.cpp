@@ -6,16 +6,18 @@ Mesh::~Mesh()
 {
 }
 
-Mesh::Mesh(vector<Vertex> vertices, vector<GLuint> indicies)
+Mesh::Mesh(const vector<Vertex>& vertices, const vector<GLuint>& indicies)
 {
-	this->vertices = vertices;
-	this->indices = indicies;
+	this->vertices = vector<Vertex>(vertices);
+	this->indices = vector<GLuint>(indicies);
 
 	SetupMesh();
 }
 
 void Mesh::SetupMesh()
 {
+	if (setUp)
+		return;
 	setUp = true;
 	// create and bind vertex array object
 	glGenVertexArrays(1, &VAO);

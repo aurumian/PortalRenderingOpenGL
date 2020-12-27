@@ -5,25 +5,31 @@
 
 void MeshRenderer::Draw()
 {
+	Draw(material);
+}
+
+
+void MeshRenderer::Draw(Material* mat) {
 	if (!mesh->setUp)
 		mesh->SetupMesh();
-
-	material->shader->use();
+	if (mat == nullptr)
+		mat = material;
+	mat->shader->use();
 
 	// set textures
 	GLuint diffuseNr = 0;
 	GLuint specularNr = 0;
-	for (GLuint i = 0; i < material->textures.size(); i++) {
+	for (GLuint i = 0; i < mat->textures.size(); i++) {
 		glActiveTexture(GL_TEXTURE0 + i);
 		string number;
-		string name = material->textures[i].type;
+		string name = mat->textures[i].type;
 		if (name == "texture_diffuse")
 			number = to_string(diffuseNr++);
 		else if (name == "texture_specular")
 			number = to_string(specularNr++);
 
-		material->shader->setInt(("material." + name + number).c_str(), i);
-		glBindTexture(GL_TEXTURE_2D, material->textures[i].id);
+		mat->shader->setInt(("material." + name + number).c_str(), i);
+		glBindTexture(GL_TEXTURE_2D, mat->textures[i].id);
 	}
 	glActiveTexture(GL_TEXTURE0);
 

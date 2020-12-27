@@ -151,8 +151,12 @@
   <ItemGroup>
     <None Include="BulbFragmentShader.fsf" />
     <None Include="BulbVertexShader.vs" />
+    <None Include="fsqFragment.fsf" />
+    <None Include="fsqVertex.vs" />
     <None Include="GrassFragmentShader.fsf" />
     <None Include="FragmenShader.fsf" />
+    <None Include="smFragment.fsf" />
+    <None Include="smVertex.vs" />
     <None Include="VertexShader.vs" />
     <None Include="WindowFragmentShader.fsf" />
   </ItemGroup>

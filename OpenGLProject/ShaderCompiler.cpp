@@ -19,12 +19,12 @@ ShaderCompiler::~ShaderCompiler()
 {
 }
 
-void ShaderCompiler::AddVertexShader(const GLchar * filepath)
+void ShaderCompiler::SetVertexShader(const GLchar * filepath)
 {
 	vertexPath = filepath;
 }
 
-void ShaderCompiler::AddFragmentShader(const GLchar * filepath)
+void ShaderCompiler::SetFragmentShader(const GLchar * filepath)
 {
 	fragPath = filepath;
 }

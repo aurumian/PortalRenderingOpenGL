@@ -92,6 +92,18 @@
     <None Include="WindowFragmentShader.fsf">
       <Filter>Source Files\GLSL Shaders</Filter>
     </None>
+    <None Include="smVertex.vs">
+      <Filter>Source Files\GLSL Shaders</Filter>
+    </None>
+    <None Include="smFragment.fsf">
+      <Filter>Source Files\GLSL Shaders</Filter>
+    </None>
+    <None Include="fsqVertex.vs">
+      <Filter>Source Files\GLSL Shaders</Filter>
+    </None>
+    <None Include="fsqFragment.fsf">
+      <Filter>Source Files\GLSL Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ShaderProgram.h">
