@@ -10,6 +10,9 @@ public:
 
 	Transform GetTransform();
 
+	virtual void Update() {};
+	virtual void Start() {};
+
 	virtual ~Component() {}
 
 	Actor* GetOwner() {

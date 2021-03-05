@@ -1,4 +1,4 @@
-#version 330 core
+#version 440 core
 
 struct Material{
 	sampler2D texture_diffuse0;
@@ -7,6 +7,7 @@ struct Material{
 };
 
 uniform sampler2D shadowMap;
+uniform usampler2D smStencil;
 
 struct DirLight{
 	vec3 direction;
@@ -45,12 +46,16 @@ in VS_OUT {
     vec3 Normal;
     vec2 texCoord;
     vec4 FragPosLightSpace;
+    vec4 FragPosLightSpace2;
 } fs_in;
 
 uniform Material material;
 uniform DirLight dirLight = {{0.0f, -1.0f, 0.0f}, 0.1f, {1.0f, 1.0f, 1.0f}, 1.0f};
+uniform DirLight dirLight2 = {{0.0f, -1.0f, 0.0f}, 0.1f, {1.0f, 1.0f, 1.0f}, 1.0f};
 uniform PointLight pointLight = { {0.0f, 2.0f, 0.0f}, 0.1f, {1.0f, 1.0f, 1.0f}, 1.0f, 1.0f, 0.09f, 0.032f};
 uniform SpotLight spotLight = {{0.0f, 0.0f, 0.0f}, 0.1f, {1.0f, 1.0f, 1.0f}, 1.0f, {0.0f, 0.0f, 1.0f}, 0.15, 0.23f };
+uniform uint smRef;
+uniform uint smRef2;
 
 out vec4 FragColor;
 
@@ -62,8 +67,11 @@ vec3 GetSpecularColor(){
 	return texture(material.texture_specular0, fs_in.texCoord).xyz;
 }
 
+// TODO: write more flexible functions for calculating shadows and light
+// for portals: only the outside light should give ambience, etc
 
-float CalculateDirShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir) {
+float CalculateDirShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir, bool useRef) {
+	
 	vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
 	projCoords = projCoords * 0.5f + 0.5f;
 	float closestDepth = texture(shadowMap, projCoords.xy).r;
@@ -73,10 +81,25 @@ float CalculateDirShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir) {
 	shadow = (projCoords.z > 1.0f) ? 0.0f : shadow;
 	if (projCoords.z > 1.0f)
 		shadow = 0.0f;
+
+	// temp
+	// first we need to know whether the light is in the same space as the camera (outside or inside the portal) 
+	
+	// for lights outside the portal
+	uint stencil = texture(smStencil, projCoords.xy).r;
+	if(useRef)
+		shadow = stencil == smRef ? shadow : 1.0;
+	else if (stencil == smRef)
+		shadow = stencil == smRef2 ? shadow : 1.0;
+
+
+	// for lights inside the portal
+	
+
 	return shadow;
 }
 
-vec3 CalculateDirLight(DirLight light, vec3 normal, vec3 viewDir){
+vec3 CalculateDirLight(DirLight light, vec3 normal, vec3 viewDir, vec4 lightSpacePos, bool useRef){
 	vec3 baseColor = GetBaseColor();
 	vec3 lightDir = normalize(-light.direction);
 	// ambient shading
@@ -87,7 +110,7 @@ vec3 CalculateDirLight(DirLight light, vec3 normal, vec3 viewDir){
 	vec3 reflectDir = reflect(-lightDir, normal);
 	vec3 specular = pow(max(dot(viewDir, reflectDir), 0.0f), material.shiness) * GetSpecularColor();
 	// shadows
-	float shadow = CalculateDirShadow(fs_in.FragPosLightSpace, normal, lightDir);
+	float shadow = CalculateDirShadow(lightSpacePos, normal, lightDir, useRef);
 	
 	vec3 lightColor = light.color * light.intensity;
 	return (ambient + (1.0 - shadow) *(diffuse + specular)) * lightColor;
@@ -147,7 +170,8 @@ void main() {
 
 	vec3 res = //CalculateSpotLight(spotLight, normal, viewDir)
 			 + CalculatePointLight(pointLight, normal, viewDir)
-			 + CalculateDirLight(dirLight, normal, viewDir)
+			 + CalculateDirLight(dirLight, normal, viewDir, fs_in.FragPosLightSpace, true)
+			 + CalculateDirLight(dirLight2, normal, viewDir, fs_in.FragPosLightSpace2, false)
 			 ;
 	
     FragColor = vec4(res, 1.0f);

@@ -36,8 +36,11 @@ public:
 	void setBool(const string &name, bool value) {
 		glUniform1i(glGetUniformLocation(ID, name.c_str()), (int)value);
 	}
-	void setInt(const string &name, int value) {
+	void setInt(const string &name, GLint value) {
 		glUniform1i(glGetUniformLocation(ID, name.c_str()), value);
+	}
+	void setUInt(const string &name, GLuint value) {
+		glUniform1ui(glGetUniformLocation(ID, name.c_str()), value);
 	}
 	void setFloat(const string &name, float value) {
 		glUniform1f(glGetUniformLocation(ID, name.c_str()), value);

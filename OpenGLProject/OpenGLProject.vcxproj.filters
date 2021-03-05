@@ -72,6 +72,9 @@
     <ClCompile Include="Portal.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MoverComponent.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="BulbFragmentShader.fsf">
@@ -102,6 +105,15 @@
       <Filter>Source Files\GLSL Shaders</Filter>
     </None>
     <None Include="fsqFragment.fsf">
+      <Filter>Source Files\GLSL Shaders</Filter>
+    </None>
+    <None Include="ppVertex.vs">
+      <Filter>Source Files\GLSL Shaders</Filter>
+    </None>
+    <None Include="ppFragment.fsf">
+      <Filter>Source Files\GLSL Shaders</Filter>
+    </None>
+    <None Include="clearDepthFragment.fsf">
       <Filter>Source Files\GLSL Shaders</Filter>
     </None>
   </ItemGroup>
@@ -164,6 +176,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Portal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MoverComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
