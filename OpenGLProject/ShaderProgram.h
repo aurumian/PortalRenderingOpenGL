@@ -78,7 +78,7 @@ public:
 		glDeleteShader(fragment);
 	}
 
-	void use() {
+	void Use() {
 		glUseProgram(Program);
 	}
 

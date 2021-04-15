@@ -12,9 +12,13 @@ void MeshRenderer::Draw()
 void MeshRenderer::Draw(Material* mat) {
 	if (!mesh->setUp)
 		mesh->SetupMesh();
+
+
 	if (mat == nullptr)
 		mat = material;
-	mat->shader->use();
+	mat->shader->Use();
+
+	mat->shader->setMat4("objectToWorld", GetTransform().GetTransformMatrix());
 
 	// set textures
 	GLuint diffuseNr = 0;

@@ -112,7 +112,6 @@ GLuint shadowMap;
 GLuint stencil_view;
 
 // color values
-Transform bulbTransform;
 glm::vec3 lightColor(1.0f, 1.0f, 1.0f);
 glm::vec3 objectColor(1.0f, 0.5f, 0.31f);
 
@@ -164,7 +163,6 @@ void processInput(GLFWwindow* window, Shader* shader = NULL) {
 MeshRenderer* crateRenderer;
 MeshRenderer* floorRenderer;
 MeshRenderer* grassRenderer;
-MeshRenderer* bulbRenderer;
 MeshRenderer* monkeyRenderer;
 MeshRenderer* sceneRenderer;
 MeshRenderer* scene2Renderer;
@@ -187,7 +185,11 @@ Portal p8;
 
 size_t renderDepth;
 
+// actors
 Actor mnk;
+Actor ps1;
+Actor ps2;
+Actor bulb;
 
 // temp
 glm::mat4 portallingMat;
@@ -478,11 +480,12 @@ int main() {
 
 	sceneMat.shader = sp;
 
+
 	// Create renderers
 	crateRenderer = new MeshRenderer(&container, &contMat);
 	floorRenderer = new MeshRenderer(&floor, &contMat);
 	grassRenderer = new MeshRenderer(&portalPlane, &sceneMat);
-	bulbRenderer = new MeshRenderer(&container, new Material(bulbSP));
+
 	monkeyRenderer = new MeshRenderer(&monkey, &contMat);
 	sceneRenderer = new MeshRenderer(&portalScene, &sceneMat);
 	scene2Renderer = new MeshRenderer(&portalScene2, &sceneMat);
@@ -490,6 +493,20 @@ int main() {
 	MeshRenderer* ppRenderer = new MeshRenderer(&portalPlane, new Material(ppShader));
 
 	smMat = new Material(shadowmapShader);
+
+	ps1.AddComponent(sceneRenderer);
+	ps1.transform.position = { 0.0f, 0.0f, 0.0f };
+	ps1.transform.SetScale(glm::vec3(1.0f, 1.0f, 1.0f) * 0.5f);
+	ps2.AddComponent(scene2Renderer);
+	ps2.transform.position = { 0.0f, 0.0f, 50.0f };
+	ps2.transform.SetScale(glm::vec3(1.0f, 1.0f, 1.0f) * 0.5f);
+
+	// confugure bulb
+	bulb.transform.position = glm::vec3(0.0f, 1.5f, 41.0f);
+	bulb.transform.rotation.SetEulerAngles(glm::vec3(0.0f, 0.0f, 45.0f));
+	bulb.transform.SetScale(glm::vec3(0.25f, 0.25f, 0.25f));
+	bulb.AddComponent(new MeshRenderer(&container, new Material(bulbSP)));
+
 
 	// Moving logic
 	mnk.AddComponent(monkeyRenderer);
@@ -659,10 +676,7 @@ int main() {
 	oldMouseX = (float)mouseX;
 	oldMouseY = (float)mouseY;
 
-	// set light position
-	bulbTransform.position = glm::vec3(0.0f, 1.5f, 41.0f);
-	bulbTransform.rotation.SetEulerAngles(glm::vec3(0.0f, 0.0f, 45.0f));
-	bulbTransform.SetScale(glm::vec3(0.25f, 0.25f, 0.25f));
+
 
 	// set initial camera position
 	{
@@ -742,10 +756,10 @@ int main() {
 			{
 				// temp
 				portallingMat = glm::mat4(1.0f);
-
+				// temp
 				cam.worldToView = camera.GetWorldToViewMatrix();
 				cam.projection = camera.GetProjectionMatrix();
-				sceneMat.shader->use();
+				sceneMat.shader->Use();
 				sceneMat.shader->setUInt("smRef", 0);
 				sceneMat.shader->setUInt("smRef2", 7);
 				sceneMat.shader->setFloat("dirLight2.intensity", 2.0f);
@@ -761,7 +775,7 @@ int main() {
 			{
 				glDisable(GL_DEPTH_TEST);
 				glBindTexture(GL_TEXTURE_2D, shadowMap);
-				fsqRenderer->GetMaterial()->shader->use();
+				fsqRenderer->GetMaterial()->shader->Use();
 				fsqRenderer->GetMaterial()->shader->setInt("screenTex", 0);
 				fsqRenderer->Draw();
 				glEnable(GL_DEPTH_TEST);
@@ -844,7 +858,7 @@ int main() {
 				glm::mat4 scale2 = glm::mat4(1.0f);
 				//scale2[0][0] = 8.0f/6.0f;
 				//scale2[1][1] = 0.5f / portalDims.y;
-				s->use();
+				s->Use();
 				glm::vec3 psCamPos = scale2 *scale * t.GetInverseTransformMatrix() * glm::vec4(camera.GetTransform().position, 1.0f);
 				s->setVec3("psCamPos", psCamPos);
 				// do we need this here?
@@ -852,7 +866,7 @@ int main() {
 					SetGlobalViewMatrix(cam.worldToView);
 					SetGlobalProjectionMatrix(cam.projection);
 				}
-				s->setMat4("objectToWorld", t.GetTransformMatrix());
+				//s->setMat4("objectToWorld", t.GetTransformMatrix());
 				s->setMat4("portalDimsScaler", scale);
 				ppRenderer->Draw();
 			}
@@ -886,7 +900,7 @@ int main() {
 					// draw portals
 					for (const Portal* p : portalsToRender) {
 						cam.worldToView = wtvs[p];
-						sceneMat.shader->use();
+						sceneMat.shader->Use();
 						sceneMat.shader->setUInt("smRef", p->stencilVal);
 						sceneMat.shader->setUInt("smRef2", p->stencilVal);
 						sceneMat.shader->setFloat("dirLight2.intensity", 2.0f);
@@ -951,7 +965,7 @@ void UpdateStencil(const list<Portal*>& pl, unordered_map<const Portal*, glm::ma
 		MeshRenderer* r = pl.front()->GetComponent<MeshRenderer>();
 		Shader* sp = r->GetMaterial()->GetShader();
 
-		sp->use();
+		sp->Use();
 		sp->setVec3("lightColor", { 0.1f, 0.1f, 0.1f });
 		glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
 
@@ -961,7 +975,7 @@ void UpdateStencil(const list<Portal*>& pl, unordered_map<const Portal*, glm::ma
 			glStencilFunc(GL_EQUAL, m.second.begin()->second->prevStencil, 0xFF);
 			for (auto& e : m.second) {
 				Portal* p = e.second;
-				sp->setMat4("objectToWorld", p->transform.GetTransformMatrix());
+				r = p->GetComponent<MeshRenderer>();
 				SetGlobalViewMatrix(wtvs[p]);
 				p->stencilVal += 1;
 				p->prevStencil += 1;
@@ -980,10 +994,7 @@ void DrawPortalPlane(const Portal& p, const glm::mat4& worldToView) {
 	MeshRenderer* r = p.GetComponent<MeshRenderer>();
 	Shader* sp = r->GetMaterial()->GetShader();
 
-	glm::mat4 objectToWorld = p.transform.GetTransformMatrix();
-	sp->use();
-	SetGlobalViewMatrix(worldToView);
-	sp->setMat4("objectToWorld", objectToWorld);
+	sp->Use();
 	sp->setVec3("lightColor", { 0.1f, 0.1f, 0.1f });
 	r->Draw();
 }
@@ -995,7 +1006,6 @@ glm::mat4 DrawPortal(const Portal& p, const Cam& cam, Material* matOverride) {
 
 	Cam c = cam;
 	c.worldToView = newWTV;
-	//::worldToView = newWTV;
 
 	// draw the scene from a new perspective
 	{
@@ -1004,10 +1014,11 @@ glm::mat4 DrawPortal(const Portal& p, const Cam& cam, Material* matOverride) {
 
 		Shader* sp;
 		if (matOverride == nullptr)
+			// temp
 			sp = crateRenderer->GetMaterial()->GetShader();
 		else
 			sp = matOverride->shader;
-		sp->use();
+		sp->Use();
 		sp->setVec4("portalPlaneEq", p.dest->GetViewspacePortalEquation(newWTV));
 		
 		// temp
@@ -1031,25 +1042,24 @@ void DrawScene(const Cam& cam, Material* matOverride) {
 
 	if (matOverride != nullptr) {
 		sp = matOverride->GetShader();
-		sp->use();
+		sp->Use();
 	}
 
 	// draw bulb
 	if (matOverride == nullptr) {
-		sp = bulbRenderer->GetMaterial()->GetShader();
-		sp->use();
+		sp = bulb.GetComponent<MeshRenderer>()->GetMaterial()->GetShader();
+		sp->Use();
 		sp->setVec3("lightColor", lightColor);
 		sp->setMat4("lightSpaceMatrix", GetLightSpaceMatrix(light));
 	}
-	sp->setMat4("objectToWorld", bulbTransform.GetTransformMatrix());
-	bulbRenderer->Draw(matOverride);
+	bulb.GetComponent<MeshRenderer>()->Draw(matOverride);
 
 	// draw with main shader or override shader:
 	{
 		// draw monkey
 		if (matOverride == nullptr) {
 			sp = monkeyRenderer->GetMaterial()->GetShader();
-			sp->use();
+			sp->Use();
 			// temp
 			sp->setMat4("lightSpaceMatrix", GetLightSpaceMatrix(light) * portallingMat);
 			sp->setVec3("lightColor", lightColor);
@@ -1067,7 +1077,7 @@ void DrawScene(const Cam& cam, Material* matOverride) {
 			sp->setVec3("dirLight2.direction", glm::mat3(cam.worldToView) * light.transform.rotation.GetForwardVector());
 			sp->setFloat("dirLight2.ambientStrength", 0.0f);
 
-			sp->setVec3("pointLight.position", cam.worldToView * glm::vec4(bulbTransform.position, 1.0f));
+			sp->setVec3("pointLight.position", cam.worldToView * glm::vec4(bulb.transform.position, 1.0f));
 			sp->setFloat("material.shiness", 32.0f);
 			glActiveTexture(GL_TEXTURE2);
 			sp->setInt("shadowMap", 2);
@@ -1078,24 +1088,14 @@ void DrawScene(const Cam& cam, Material* matOverride) {
 			glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_STENCIL_TEXTURE_MODE, GL_STENCIL_INDEX);
 			glActiveTexture(GL_TEXTURE0);
 		}
-		Transform t;
-		//t.position = { 0.0f, 1.0f, 5.0f };
-		//t.SetScale(glm::vec3(1.0f, 1.0f, 1.0f) * 0.2f);
-		sp->setMat4("objectToWorld", mnk.transform.GetTransformMatrix());
 		monkeyRenderer->Draw(matOverride);
 
 		// draw portal scenes
-		t.position = { 0.0f, 0.0f, 0.0f };
-		t.SetScale(glm::vec3(1.0f, 1.0f, 1.0f) * 0.5f);
-		sp->setMat4("objectToWorld", t.GetTransformMatrix());
 		if (matOverride == nullptr) {
-			glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(cam.worldToView * t.GetTransformMatrix())));
+			glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(cam.worldToView * ps1.transform.GetTransformMatrix())));
 			sp->SetMat3("normalMatrix", normalMatrix);
 		}
 		sceneRenderer->Draw(matOverride);
-
-		t.position = { 0.0f, 0.0f, 50.0f };
-		t.SetScale(glm::vec3(1.0f, 1.0f, 1.0f) * 0.5f);
 		
 		if (matOverride == nullptr) {
 			if (renderDepth == 0) {
@@ -1110,9 +1110,8 @@ void DrawScene(const Cam& cam, Material* matOverride) {
 			sp->setFloat("dirLight2.ambientStrength", 0.0f);
 			
 		}
-		sp->setMat4("objectToWorld", t.GetTransformMatrix());
 		if (matOverride == nullptr) {
-			glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(cam.worldToView * t.GetTransformMatrix())));
+			glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(cam.worldToView * ps2.transform.GetTransformMatrix())));
 			sp->SetMat3("normalMatrix", normalMatrix);
 		}
 		scene2Renderer->Draw(matOverride);
@@ -1185,17 +1184,11 @@ void RenderShadowmap(GLuint fbo, DirLight& light, list<Portal*> portalsToRender)
 	
 	glEnable(GL_STENCIL_TEST);
 	// redner portal planes to apply stencil values
-	Shader* sp = smMat->shader;
-	sp->use();
 	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 	for (const Portal* p : portalsToRender) {
 		glStencilFunc(GL_ALWAYS, p->stencilVal, 0xFF);
 
 		MeshRenderer* r = p->GetComponent<MeshRenderer>();
-		
-		glm::mat4 objectToWorld = p->transform.GetTransformMatrix();
-		sp->use();
-		sp->setMat4("objectToWorld", objectToWorld);
 		r->Draw(smMat);
 	}
 	
@@ -1203,17 +1196,11 @@ void RenderShadowmap(GLuint fbo, DirLight& light, list<Portal*> portalsToRender)
 	// but only where the stencil is equal to the portal's stencil
 	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 	glDepthFunc(GL_ALWAYS);
-	// use shader that sets depth to 1.0 (clears it)
-	sp = clearDepthMat->shader;
-	sp->use();
 	for (const Portal* p : portalsToRender) {
 		glStencilFunc(GL_EQUAL, p->stencilVal, 0xFF);
 		
 		MeshRenderer* r = p->GetComponent<MeshRenderer>();
-
-		glm::mat4 objectToWorld = p->transform.GetTransformMatrix();
-		sp->use();
-		sp->setMat4("objectToWorld", objectToWorld);
+		// use shader that sets depth to 1.0 (clears it)
 		r->Draw(clearDepthMat);
 	}
 	glDepthFunc(GL_LESS);
