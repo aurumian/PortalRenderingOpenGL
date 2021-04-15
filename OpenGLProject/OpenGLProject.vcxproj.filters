@@ -75,6 +75,9 @@
     <ClCompile Include="MoverComponent.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="UniformBufferObject.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="BulbFragmentShader.fsf">
@@ -179,6 +182,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="MoverComponent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UniformBufferObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

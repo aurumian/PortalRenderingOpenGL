@@ -1,5 +1,7 @@
 #version 440 core
 
+#define MAX_NUM_DIR_LIGHTS 4
+
 struct Material{
 	sampler2D texture_diffuse0;
 	sampler2D texture_specular0;
@@ -11,11 +13,15 @@ uniform usampler2D smStencil;
 
 struct DirLight{
 	vec3 direction;
-
 	float ambientStrength;
 	vec3 color;
 	float intensity;
+	sampler2D smDepth;
+	usampler2D smStencil;
+	uint smStencilRef; // stencil value of the current space
 };
+
+uniform DirLight dirLights[MAX_NUM_DIR_LIGHTS];
 
 struct PointLight{
 	vec3 position;
@@ -50,8 +56,8 @@ in VS_OUT {
 } fs_in;
 
 uniform Material material;
-uniform DirLight dirLight = {{0.0f, -1.0f, 0.0f}, 0.1f, {1.0f, 1.0f, 1.0f}, 1.0f};
-uniform DirLight dirLight2 = {{0.0f, -1.0f, 0.0f}, 0.1f, {1.0f, 1.0f, 1.0f}, 1.0f};
+uniform DirLight dirLight;
+uniform DirLight dirLight2;
 uniform PointLight pointLight = { {0.0f, 2.0f, 0.0f}, 0.1f, {1.0f, 1.0f, 1.0f}, 1.0f, 1.0f, 0.09f, 0.032f};
 uniform SpotLight spotLight = {{0.0f, 0.0f, 0.0f}, 0.1f, {1.0f, 1.0f, 1.0f}, 1.0f, {0.0f, 0.0f, 1.0f}, 0.15, 0.23f };
 uniform uint smRef;
@@ -173,6 +179,8 @@ void main() {
 			 + CalculateDirLight(dirLight, normal, viewDir, fs_in.FragPosLightSpace, true)
 			 + CalculateDirLight(dirLight2, normal, viewDir, fs_in.FragPosLightSpace2, false)
 			 ;
+
+	
 	
     FragColor = vec4(res, 1.0f);
 }

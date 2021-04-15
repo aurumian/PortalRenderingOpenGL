@@ -4,10 +4,13 @@ layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNormal;
 layout (location = 2) in vec2 TexCoord;
 
+layout (std140) uniform GlobalMatrices
+{
+	uniform mat4 worldToView;
+	uniform mat4 projection;
+};
 
 uniform mat4 objectToWorld;
-uniform mat4 worldToView;
-uniform mat4 projection;
 uniform mat4 lightSpaceMatrix;
 uniform mat4 lightSpaceMatrix2;
 

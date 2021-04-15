@@ -65,7 +65,7 @@ Shader * ShaderCompiler::Compile() const
 	vertex = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertex, 1, &vSource, NULL);
 	glCompileShader(vertex);
-	if (!CheckShaderCompileErrors(vertex, "ERROR::SHADER::VERTEX::COMPILATION_FATILED")) {
+	if (!CheckShaderCompileErrors(vertex, "ERROR::SHADER::VERTEX::COMPILATION_FATILED::FILE: " + vertexPath)) {
 		return nullptr;
 	}
 	//fragment
@@ -73,7 +73,7 @@ Shader * ShaderCompiler::Compile() const
 	fragment = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(fragment, 1, &fSource, NULL);
 	glCompileShader(fragment);
-	if (!CheckShaderCompileErrors(fragment, "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED")) {
+	if (!CheckShaderCompileErrors(fragment, "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED:FILE: " + fragPath)) {
 		return nullptr;
 	}
 	
@@ -87,7 +87,10 @@ Shader * ShaderCompiler::Compile() const
 	if (!success) {
 		char infoLog[infoLogSize];
 		glGetProgramInfoLog(ID, infoLogSize, NULL, infoLog);
-		cout << "ERROR::SHADER::LINKING_FAILED" << infoLog << endl;
+		cout << "ERROR::SHADER::LINKING_FAILED\n";
+		cout << "VERTEX_FILE: " << vertexPath << endl;
+		cout << "FRAGMENT_FILE " << fragPath << endl;
+		cout << infoLog << endl;
 		return nullptr;
 	}
 

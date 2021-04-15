@@ -25,6 +25,7 @@
 #include "Material.h"
 #include "Portal.h"
 #include "MoverComponent.h"
+#include "UniformBufferObject.h"
 
 using namespace std;
 
@@ -32,17 +33,49 @@ using namespace std;
 const int MAX_PORTAL_DEPTH = 2;
 const GLsizei SHADOW_MAP_SIZE = 1024 *2;
 const GLsizei PORTAL_CUBE_MAP_SIZE = 1024;
+const size_t MAX_DIR_LIGHT_COUNT = 4;
 
 struct DirLight {
 	Transform transform;
 	float intensity = 1.0f;
+	float ambientStrenght = 0.1f;
+	glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f);
+	GLuint smDepth = 0;
+	GLuint smStencil = 0;
+	glm::mat4 lightSpaceMatrix; // matrix that transforms worldspace coordinates to lightspace
 
 	// shadow rendering parameters
 	float nearPlane = 1.0f;
 	float farPlane = 20.0f;
-	// hieght and width of the rendering frustrum
+	// height and width of the rendering frustrum
 	float extent = 20.0f;
 };
+
+
+struct PortalSpace {
+	vector<Portal*> portals;
+	vector<DirLight> dirLights;
+};
+
+size_t numDirLights = 0;
+DirLight dirLights[MAX_DIR_LIGHT_COUNT];
+
+UniformBufferObject* globalMatrices;
+
+void CreateGlobalMatricesBuffer();
+
+void SetGlobalViewMatrix(const glm::mat4& view);
+
+void SetGlobalProjectionMatrix(const glm::mat4& projection);
+
+void ApplyLightValuesToShader(Shader* shader, size_t lightIndex);
+
+/*
+* needs to take into account all the lights that exist in the space
+* and all the lights that are coming into the space
+*/
+void CalculateVisibleDirLights(PortalSpace* space);
+
 
 struct Cam {
 	glm::mat4 worldToView;
@@ -103,7 +136,6 @@ void processInput(GLFWwindow* window, Shader* shader = NULL) {
 	if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
 		cout << camera.GetTransform().ToString() << endl;
 	}
-
 	
 	double mouseX, mouseY;
 	glfwGetCursorPos(window, &mouseX, &mouseY);
@@ -128,45 +160,8 @@ void processInput(GLFWwindow* window, Shader* shader = NULL) {
 	}
 }
 
-
-// positions of all containers
-glm::vec3 cubePositions[] = {
-	glm::vec3(0.0f,  3.0f,  0.0f),
-	glm::vec3(2.0f,  5.0f, 15.0f),
-	glm::vec3(-1.5f, -2.2f, 2.5f),
-	glm::vec3(-3.8f, -2.0f, 12.3f),
-	glm::vec3(2.4f, -0.4f, 3.5f),
-	glm::vec3(-1.7f,  3.0f, 7.5f),
-	glm::vec3(1.3f, -2.0f, 2.5f),
-	glm::vec3(1.5f,  2.0f, 2.5f),
-	glm::vec3(1.5f,  0.2f, 1.5f),
-	glm::vec3(-1.3f,  1.0f, 1.5f)
-};
-// positions of pieces of grass
-glm::vec3 grassPositions[] = {
-	glm::vec3(0.2f, 0.0f, 0.1f),
-	glm::vec3(0.25f, 0.0f, 0.19f),
-	glm::vec3(-0.25f, 0.0f, 0.19f),
-	glm::vec3(-0.25f, 0.0f, -0.19f),
-	glm::vec3(-0.5f, 0.0f, -0.34f),
-	glm::vec3(-0.5f, 0.0f, 0.34f),
-	glm::vec3(0.5f, 0.0f, 0.34f),
-	glm::vec3(0.5f, 0.0f, 0.34f)
-};
-glm::vec3 windowPositions[] = {
-	glm::vec3(0, 0, 2.0f),
-	glm::vec3(0.5, 0, 1.0f),
-	glm::vec3(0.25f, 0, -1.0f),
-	glm::vec3(-0.25f, 0, 1.5f),
-};
-
-
-glm::mat4 worldToView;
-glm::mat4 projection;
-
 // Renderers
 MeshRenderer* crateRenderer;
-MeshRenderer* windowRenderer;
 MeshRenderer* floorRenderer;
 MeshRenderer* grassRenderer;
 MeshRenderer* bulbRenderer;
@@ -423,37 +418,33 @@ int main() {
 	verts.push_back({ glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0,0,-1), glm::vec2(0, 0) });
 	Mesh fsq = Mesh(verts, inds);
 
-	// create window mesh
-	texs.clear();
-	texs.push_back(windowTex);
-	Material windowMat;
-	windowMat.textures = texs;
-	Mesh windowMesh = Mesh(verts, inds);
+	// create GlobalMatrices Unniform Buffer Object
+	CreateGlobalMatricesBuffer();
 
 	ShaderCompiler comp;
 	//create shaderProgram
 	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\FragmenShader.fsf");
 	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
 	Shader* sp = comp.Compile();
+	sp->BindUBO(globalMatrices);
 
 	// create bulb shader program
 	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\BulbFragmentShader.fsf");
 	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
 	Shader* bulbSP = comp.Compile();
+	bulbSP->BindUBO(globalMatrices);
 
 	// create grass shader program
 	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\GrassFragmentShader.fsf");
 	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
 	Shader* grassShader = comp.Compile();
+	grassShader->BindUBO(globalMatrices);
 
-	// create window shader program
-	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
-	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\WindowFragmentShader.fsf");
-	Shader* windowShader = comp.Compile();
-
+	// create shadowmap shader
 	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\smVertex.vs");
 	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\smFragment.fsf");
 	shadowmapShader = comp.Compile();
+	shadowmapShader->BindUBO(globalMatrices);
 
 	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\fsqVertex.vs");
 	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\fsqFragment.fsf");
@@ -462,14 +453,15 @@ int main() {
 	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\ppVertex.vs");
 	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\ppFragment.fsf");
 	Shader* ppShader = comp.Compile();
+	ppShader->BindUBO(globalMatrices);
 
 	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\smVertex.vs");
 	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\clearDepthFragment.fsf");
 	Shader* clearDepthShader = comp.Compile();
+	clearDepthShader->BindUBO(globalMatrices);
 
 	contMat.shader = sp;
 	sceneMat.shader = grassShader;
-	windowMat.shader = windowShader;
 
 	clearDepthMat = new Material(clearDepthShader);
 
@@ -491,7 +483,6 @@ int main() {
 	floorRenderer = new MeshRenderer(&floor, &contMat);
 	grassRenderer = new MeshRenderer(&portalPlane, &sceneMat);
 	bulbRenderer = new MeshRenderer(&container, new Material(bulbSP));
-	windowRenderer = new MeshRenderer(&windowMesh, &windowMat);
 	monkeyRenderer = new MeshRenderer(&monkey, &contMat);
 	sceneRenderer = new MeshRenderer(&portalScene, &sceneMat);
 	scene2Renderer = new MeshRenderer(&portalScene2, &sceneMat);
@@ -596,6 +587,8 @@ int main() {
 			Transform t;
 			t.position = { 2.1f, portalDims.y, 0.0f };
 			t.rotation = glm::vec3(0.0f, 90.0f, 0.0f);
+			//t.position = { 1.5f, portalDims.y, 3.0f };
+			//t.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
 			p5.transform = t;
 			p5.stencilVal = 1;
 			p5.dest = &p7;
@@ -854,8 +847,11 @@ int main() {
 				s->use();
 				glm::vec3 psCamPos = scale2 *scale * t.GetInverseTransformMatrix() * glm::vec4(camera.GetTransform().position, 1.0f);
 				s->setVec3("psCamPos", psCamPos);
-				s->setMat4("worldToView", cam.worldToView);
-				s->setMat4("projection", cam.projection);
+				// do we need this here?
+				{
+					SetGlobalViewMatrix(cam.worldToView);
+					SetGlobalProjectionMatrix(cam.projection);
+				}
 				s->setMat4("objectToWorld", t.GetTransformMatrix());
 				s->setMat4("portalDimsScaler", scale);
 				ppRenderer->Draw();
@@ -877,8 +873,6 @@ int main() {
 
 
 				// set some shader values that don't change during the frame
-				Shader* sp = bulbSP;
-				sp->setMat4("projection", projection);
 				glClear(GL_STENCIL_BUFFER_BIT);
 				glEnable(GL_STENCIL_TEST);
 				while (!portalsToRender.empty()) {
@@ -968,7 +962,7 @@ void UpdateStencil(const list<Portal*>& pl, unordered_map<const Portal*, glm::ma
 			for (auto& e : m.second) {
 				Portal* p = e.second;
 				sp->setMat4("objectToWorld", p->transform.GetTransformMatrix());
-				sp->setMat4("worldToView", wtvs[p]);
+				SetGlobalViewMatrix(wtvs[p]);
 				p->stencilVal += 1;
 				p->prevStencil += 1;
 				r->Draw();
@@ -988,7 +982,7 @@ void DrawPortalPlane(const Portal& p, const glm::mat4& worldToView) {
 
 	glm::mat4 objectToWorld = p.transform.GetTransformMatrix();
 	sp->use();
-	sp->setMat4("worldToView", worldToView);
+	SetGlobalViewMatrix(worldToView);
 	sp->setMat4("objectToWorld", objectToWorld);
 	sp->setVec3("lightColor", { 0.1f, 0.1f, 0.1f });
 	r->Draw();
@@ -1032,19 +1026,18 @@ glm::mat4 DrawPortal(const Portal& p, const Cam& cam, Material* matOverride) {
 void DrawScene(const Cam& cam, Material* matOverride) {
 	Shader* sp = nullptr;
 
+	SetGlobalProjectionMatrix(cam.projection);
+	SetGlobalViewMatrix(cam.worldToView);
+
 	if (matOverride != nullptr) {
 		sp = matOverride->GetShader();
 		sp->use();
-		sp->setMat4("worldToView", cam.worldToView);
-		sp->setMat4("projection", cam.projection);
 	}
 
 	// draw bulb
 	if (matOverride == nullptr) {
 		sp = bulbRenderer->GetMaterial()->GetShader();
 		sp->use();
-		sp->setMat4("worldToView", cam.worldToView);
-		sp->setMat4("projection", cam.projection);
 		sp->setVec3("lightColor", lightColor);
 		sp->setMat4("lightSpaceMatrix", GetLightSpaceMatrix(light));
 	}
@@ -1057,8 +1050,6 @@ void DrawScene(const Cam& cam, Material* matOverride) {
 		if (matOverride == nullptr) {
 			sp = monkeyRenderer->GetMaterial()->GetShader();
 			sp->use();
-			sp->setMat4("worldToView", cam.worldToView);
-			sp->setMat4("projection", cam.projection);
 			// temp
 			sp->setMat4("lightSpaceMatrix", GetLightSpaceMatrix(light) * portallingMat);
 			sp->setVec3("lightColor", lightColor);
@@ -1109,7 +1100,7 @@ void DrawScene(const Cam& cam, Material* matOverride) {
 		if (matOverride == nullptr) {
 			if (renderDepth == 0) {
 				sp->setFloat("dirLight.intensity", 0.0f);
-				sp->setFloat("dirLight2.intensity", 1.0f);
+				sp->setFloat("dirLight2.intensity", 2.0f);
 			}
 			else{
 				sp->setFloat("dirLight.intensity", 2.0f);
@@ -1166,6 +1157,8 @@ void RenderShadowmap(GLuint fbo, DirLight& light, list<Portal*> portalsToRender)
 	
 	
 	Cam cam = GetLightCam(light);
+	SetGlobalProjectionMatrix(cam.projection);
+	SetGlobalViewMatrix(cam.worldToView);
 
 	unordered_map<const Portal*, glm::mat4> wtvs;
 	
@@ -1177,7 +1170,7 @@ void RenderShadowmap(GLuint fbo, DirLight& light, list<Portal*> portalsToRender)
 	}
 
 	{
-		// render portal planes to not render the pixels that will be covered by them anyway
+		// render portal planes first to not render the pixels that will be covered by them anyway ?
 		// render the scene first time
 		// redner portal planes again to apply stencil values and clear depth
 		// for each portal draw the scene again to update the depth map
@@ -1187,14 +1180,13 @@ void RenderShadowmap(GLuint fbo, DirLight& light, list<Portal*> portalsToRender)
 	// render the scene without portals
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
-	DrawScene(GetLightCam(light), smMat);
+	DrawScene(cam, smMat);
 	glDisable(GL_CULL_FACE);
 	
 	glEnable(GL_STENCIL_TEST);
 	// redner portal planes to apply stencil values
 	Shader* sp = smMat->shader;
 	sp->use();
-	sp->setMat4("projection", cam.projection);
 	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 	for (const Portal* p : portalsToRender) {
 		glStencilFunc(GL_ALWAYS, p->stencilVal, 0xFF);
@@ -1203,7 +1195,6 @@ void RenderShadowmap(GLuint fbo, DirLight& light, list<Portal*> portalsToRender)
 		
 		glm::mat4 objectToWorld = p->transform.GetTransformMatrix();
 		sp->use();
-		sp->setMat4("worldToView", cam.worldToView);
 		sp->setMat4("objectToWorld", objectToWorld);
 		r->Draw(smMat);
 	}
@@ -1215,7 +1206,6 @@ void RenderShadowmap(GLuint fbo, DirLight& light, list<Portal*> portalsToRender)
 	// use shader that sets depth to 1.0 (clears it)
 	sp = clearDepthMat->shader;
 	sp->use();
-	sp->setMat4("projection", cam.projection);
 	for (const Portal* p : portalsToRender) {
 		glStencilFunc(GL_EQUAL, p->stencilVal, 0xFF);
 		
@@ -1223,7 +1213,6 @@ void RenderShadowmap(GLuint fbo, DirLight& light, list<Portal*> portalsToRender)
 
 		glm::mat4 objectToWorld = p->transform.GetTransformMatrix();
 		sp->use();
-		sp->setMat4("worldToView", cam.worldToView);
 		sp->setMat4("objectToWorld", objectToWorld);
 		r->Draw(clearDepthMat);
 	}
@@ -1356,4 +1345,25 @@ void PrerenderPortal(const Portal& p, GLuint& outCm) {
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(0, 0, screenWidth, screenHeight);
+}
+
+
+void ApplyLightValuesToShader(const Shader* shader, DirLight light)
+{
+
+}
+
+
+void CreateGlobalMatricesBuffer() {
+	globalMatrices = new UniformBufferObject("GlobalMatrices", sizeof(glm::mat4) * 2);
+}
+
+void SetGlobalViewMatrix(const glm::mat4& view)
+{
+	globalMatrices->SetBufferSubData(0, sizeof(glm::mat4), glm::value_ptr(view));
+}
+
+void SetGlobalProjectionMatrix(const glm::mat4& projection)
+{
+	globalMatrices->SetBufferSubData(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(projection));
 }

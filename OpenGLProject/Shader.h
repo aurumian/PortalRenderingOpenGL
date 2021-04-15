@@ -10,21 +10,20 @@
 
 using namespace std;
 
+#include "UniformBufferObject.h"
+
 class Shader
 {
 public:
-	inline GLuint getProgramID() const{
+	inline GLuint GetProgramID() const{
 		return ID;
 	}
 
 	Shader(GLuint id) { ID = id; };
 
 	
-	
 	~Shader() {
-		// disabled it cause a parameter passed to function
-		// by value also triggers programm deletion
-		//glDeleteProgram(ID);
+		glDeleteProgram(ID);
 	}
 
 	//use/activate shader
@@ -64,6 +63,10 @@ public:
 	}
 	void SetMat3(const string& name, const glm::mat3 &matrix) {
 		glUniformMatrix3fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(matrix));
+	}
+
+	void BindUBO(UniformBufferObject* ubo) {
+		ubo->BindToShader(this);
 	}
 
 protected:

@@ -2,9 +2,13 @@
 
 layout (location = 0) in vec3 aPos; 
 
+layout (std140) uniform GlobalMatrices
+{
+	uniform mat4 worldToView;
+	uniform mat4 projection;
+};
+
 uniform mat4 objectToWorld;
-uniform mat4 worldToView;
-uniform mat4 projection;
 uniform mat4 portalDimsScaler;
 
 out VS_OUT {
