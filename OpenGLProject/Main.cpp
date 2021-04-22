@@ -26,96 +26,39 @@
 #include "Portal.h"
 #include "MoverComponent.h"
 #include "UniformBufferObject.h"
+#include "Lighting.h"
+#include "Shadows.h"
+#include "Common.h"
 
 using namespace std;
 
 // constants
 const int MAX_PORTAL_DEPTH = 2;
-const GLsizei SHADOW_MAP_SIZE = 1024 *2;
 const GLsizei PORTAL_CUBE_MAP_SIZE = 1024;
-const size_t MAX_DIR_LIGHT_COUNT = 4;
-
-struct DirLight {
-	Transform transform;
-	float intensity = 1.0f;
-	float ambientStrenght = 0.1f;
-	glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f);
-	GLuint smDepth = 0;
-	GLuint smStencil = 0;
-	glm::mat4 lightSpaceMatrix; // matrix that transforms worldspace coordinates to lightspace
-
-	// shadow rendering parameters
-	float nearPlane = 1.0f;
-	float farPlane = 20.0f;
-	// height and width of the rendering frustrum
-	float extent = 20.0f;
-};
 
 
-struct PortalSpace {
-	vector<Portal*> portals;
-	vector<DirLight> dirLights;
-};
-
-size_t numDirLights = 0;
-DirLight dirLights[MAX_DIR_LIGHT_COUNT];
-
-UniformBufferObject* globalMatrices;
-
-void CreateGlobalMatricesBuffer();
-
-void SetGlobalViewMatrix(const glm::mat4& view);
-
-void SetGlobalProjectionMatrix(const glm::mat4& projection);
-
-void ApplyLightValuesToShader(Shader* shader, size_t lightIndex);
-
-/*
-* needs to take into account all the lights that exist in the space
-* and all the lights that are coming into the space
-*/
-void CalculateVisibleDirLights(PortalSpace* space);
-
-
-struct Cam {
-	glm::mat4 worldToView;
-	glm::mat4 projection;
-};
-
-// if matOverride is not nullptr DrawScene doesn't change shader that is used
-// nor does it set any shader parameters except objectToWorld and cam matrices
-void DrawScene(const Cam& cam, Material* matOverride = nullptr);
-/*@pre Stencil testing must be enabled
-  @pre Stencil buffer should be cleared with 0's
- */
-void DrawPortalPlane(const Portal& p, const glm::mat4& worldToView);
-glm::mat4 DrawPortal(const Portal& p1, const Cam& cam, Material* matOverride = nullptr);
 void PrerenderPortal(const Portal& p, GLuint& outCm);
-
-void ConfigureFBOAndTextureForShadowmap(GLuint& fbo, GLuint& tex, GLuint& stencil_view);
-void RenderShadowmap(GLuint fbo, DirLight& light, list<Portal*> portalsToRender);
-glm::mat4 GetLightSpaceMatrix(const DirLight& light);
-Cam GetLightCam(const DirLight& light);
-
-void UpdateStencil(const list<Portal*>& pl, unordered_map<const Portal*, glm::mat4>& wtvs);
-
 void OnPlayerTriggerEnter(const RayHit& hit);
 
 Camera camera;
 Player player(&camera);
 PlayerController pc(&player);
 Physics physics;
-DirLight light;
+DirLight dirLight;
 
 Shader* shadowmapShader;
 GLuint shadowMap;
 GLuint stencil_view;
+Shadows* shadows;
+
+Lighting* lighting;
 
 // color values
 glm::vec3 lightColor(1.0f, 1.0f, 1.0f);
 glm::vec3 objectColor(1.0f, 0.5f, 0.31f);
 
-static int screenWidth = 800, screenHeight = 600;
+void CalcVisibleDirLights();
+
 /* window resize callback
  * tell OpenGL that the rendering window size changed
 */
@@ -168,11 +111,6 @@ MeshRenderer* sceneRenderer;
 MeshRenderer* scene2Renderer;
 MeshRenderer* fsqRenderer;
 
-// Materials
-Material* smMat;
-Material* clearDepthMat;
-Material sceneMat;
-
 // Portals
 Portal p1;
 Portal p2;
@@ -191,8 +129,8 @@ Actor ps1;
 Actor ps2;
 Actor bulb;
 
-// temp
-glm::mat4 portallingMat;
+// PortalSpace 2
+PortalSpace portalSpace2;
 
 
 int main() {
@@ -422,6 +360,7 @@ int main() {
 
 	// create GlobalMatrices Unniform Buffer Object
 	CreateGlobalMatricesBuffer();
+	lighting = new Lighting();
 
 	ShaderCompiler comp;
 	//create shaderProgram
@@ -429,6 +368,7 @@ int main() {
 	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
 	Shader* sp = comp.Compile();
 	sp->BindUBO(globalMatrices);
+	lighting->BindUboToShader(sp);
 
 	// create bulb shader program
 	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\BulbFragmentShader.fsf");
@@ -669,6 +609,23 @@ int main() {
 		}
 	}
 
+
+	PortalSpace* dps = GetDefaultPortalSpace();
+	dps->AddActor(&mnk);
+	dps->AddActor(&ps1);
+	dps->AddPortal(&p3);
+	dps->AddPortal(&p4);
+	dps->AddPortal(&p5);
+	dps->AddPortal(&p7);
+	dps->dirLights.insert(&dirLight);
+	dirLight.portalSpace = dps;
+	dirLight.intensity = 2.0;
+	portalSpace2.AddActor(&ps2);
+	portalSpace2.AddActor(&bulb);
+	portalSpace2.AddPortal(&p1);
+	portalSpace2.AddPortal(&p2);
+	
+
 	// initialize mouse input
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	double mouseX, mouseY;
@@ -701,18 +658,21 @@ int main() {
 
 	GLuint fbo;
 
-	ConfigureFBOAndTextureForShadowmap(fbo, shadowMap, stencil_view);
+	Shadows::ConfigureFBOAndTextureForShadowmap(fbo, shadowMap, stencil_view);
 	
 	// configure dir light
-	light.transform.position = glm::vec3(6.0f, 8.2f, 6.0f);
-	light.transform.rotation = glm::vec3(-126.295, -41.2203, 180);
+	dirLight.transform.position = glm::vec3(6.0f, 8.2f, 6.0f);
+	dirLight.transform.rotation = glm::vec3(-126.295, -41.2203, 180);
 
 
 	// testing 
 	GLuint cm;
-	PrerenderPortal(p4, cm);
+	//PrerenderPortal(p4, cm);
 	// end testing
+	shadows = new Shadows();
 
+	// 
+	CalcVisibleDirLights();
 
 	Time::Init();
 	//render loop
@@ -745,8 +705,15 @@ int main() {
 			portalsToRender.push_front(&p7);
 			//portalsToRender.push_front(&p8);
 
-			// render shadowmap
-			RenderShadowmap(fbo, light, portalsToRender);
+			// render shadowmaps
+			{
+				// get all the lights
+				//vector<DirLight*> lights = GetVisibleDirLights(nullptr);
+
+				// render the shadowmap for each light
+				//RenderShadowmap(fbo, dirLight, portalsToRender);
+				shadows->RenderShadowmap(*(*dps->drawableLights.begin()));
+			}
 
 			Cam cam;
 			renderDepth = 0;
@@ -765,9 +732,11 @@ int main() {
 				sceneMat.shader->setFloat("dirLight2.intensity", 2.0f);
 
 				// temp
-				sceneMat.shader->setMat4("lightSpaceMatrix2", GetLightSpaceMatrix(light) * p5.GetPortallingMat());
-
-				DrawScene(cam);
+				sceneMat.shader->setMat4("lightSpaceMatrix2", dirLight.GetLightSpaceMatrix() * p5.GetPortallingMat());
+				
+				//DrawScene(cam);
+				GetDefaultPortalSpace()->Draw(cam);
+				lighting->ClearLights();
 			}
 
 			// draw shadowmap on fsq
@@ -841,7 +810,7 @@ int main() {
 				size_t count = 1;
 				for (size_t i = 1; i < hv.size(); ++i) {
 					count += (uint8_t)hv[i - 1].count;
-					hv[i].portal->stencilVal = count;
+					hv[i].portal->stencilVal = (stencil_t)count;
 				}
 			}
 			
@@ -901,10 +870,13 @@ int main() {
 					for (const Portal* p : portalsToRender) {
 						cam.worldToView = wtvs[p];
 						sceneMat.shader->Use();
+
+						// temp
 						sceneMat.shader->setUInt("smRef", p->stencilVal);
 						sceneMat.shader->setUInt("smRef2", p->stencilVal);
+
 						sceneMat.shader->setFloat("dirLight2.intensity", 2.0f);
-						wtvs[p] = DrawPortal(*p, cam);
+						wtvs[p] = DrawPortalContents(*p, cam);
 					}
 
 					for (Portal* p : portalsToRender) {
@@ -933,6 +905,8 @@ int main() {
 				glDisable(GL_STENCIL_TEST);
 			}
 		}
+
+		shadows->FreePool();
 
 		
 		//check all the events and swap the buffers
@@ -987,52 +961,6 @@ void UpdateStencil(const list<Portal*>& pl, unordered_map<const Portal*, glm::ma
 	}
 }
 
-void DrawPortalPlane(const Portal& p, const glm::mat4& worldToView) {
-	glStencilFunc(GL_ALWAYS, p.stencilVal, 0xFF);
-	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-
-	MeshRenderer* r = p.GetComponent<MeshRenderer>();
-	Shader* sp = r->GetMaterial()->GetShader();
-
-	sp->Use();
-	sp->setVec3("lightColor", { 0.1f, 0.1f, 0.1f });
-	r->Draw();
-}
-
-glm::mat4 DrawPortal(const Portal& p, const Cam& cam, Material* matOverride) {
-
-	// update world to view matrix 
-	glm::mat4 newWTV = cam.worldToView * p.GetPortallingMat();			    
-
-	Cam c = cam;
-	c.worldToView = newWTV;
-
-	// draw the scene from a new perspective
-	{
-		glStencilFunc(GL_EQUAL, p.stencilVal, 0xFF);
-		glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-
-		Shader* sp;
-		if (matOverride == nullptr)
-			// temp
-			sp = crateRenderer->GetMaterial()->GetShader();
-		else
-			sp = matOverride->shader;
-		sp->Use();
-		sp->setVec4("portalPlaneEq", p.dest->GetViewspacePortalEquation(newWTV));
-		
-		// temp
-		portallingMat = p.GetPortallingMat();
-
-		glEnable(GL_CLIP_DISTANCE0);
-		DrawScene(c, matOverride);
-		glDisable(GL_CLIP_DISTANCE0);
-	}
-
-	return newWTV;
-}
-
-
 
 void DrawScene(const Cam& cam, Material* matOverride) {
 	Shader* sp = nullptr;
@@ -1040,17 +968,12 @@ void DrawScene(const Cam& cam, Material* matOverride) {
 	SetGlobalProjectionMatrix(cam.projection);
 	SetGlobalViewMatrix(cam.worldToView);
 
-	if (matOverride != nullptr) {
-		sp = matOverride->GetShader();
-		sp->Use();
-	}
-
 	// draw bulb
 	if (matOverride == nullptr) {
 		sp = bulb.GetComponent<MeshRenderer>()->GetMaterial()->GetShader();
 		sp->Use();
 		sp->setVec3("lightColor", lightColor);
-		sp->setMat4("lightSpaceMatrix", GetLightSpaceMatrix(light));
+		sp->setMat4("lightSpaceMatrix", dirLight.GetLightSpaceMatrix());
 	}
 	bulb.GetComponent<MeshRenderer>()->Draw(matOverride);
 
@@ -1061,30 +984,30 @@ void DrawScene(const Cam& cam, Material* matOverride) {
 			sp = monkeyRenderer->GetMaterial()->GetShader();
 			sp->Use();
 			// temp
-			sp->setMat4("lightSpaceMatrix", GetLightSpaceMatrix(light) * portallingMat);
+			sp->setMat4("lightSpaceMatrix", dirLight.GetLightSpaceMatrix() * portallingMat);
 			sp->setVec3("lightColor", lightColor);
-			sp->setVec3("dirLight.color", lightColor * 0.5f + 0.5f);
-			sp->setFloat("dirLight.intensity", 2.0f);
-			sp->setVec3("dirLight.direction", glm::mat3(cam.worldToView) * light.transform.rotation.GetForwardVector());
-			sp->setFloat("dirLight.ambientStrength", 0.2f);
+			
 
 			// temp
 			if (renderDepth == 1)
-				sp->setMat4("lightSpaceMatrix2", GetLightSpaceMatrix(light));
+				sp->setMat4("lightSpaceMatrix2", dirLight.GetLightSpaceMatrix());
 
 
 			sp->setVec3("dirLight2.color", lightColor * 0.5f + 0.5f);
-			sp->setVec3("dirLight2.direction", glm::mat3(cam.worldToView) * light.transform.rotation.GetForwardVector());
+			sp->setVec3("dirLight2.direction", glm::mat3(cam.worldToView) * dirLight.transform.rotation.GetForwardVector());
 			sp->setFloat("dirLight2.ambientStrength", 0.0f);
 
 			sp->setVec3("pointLight.position", cam.worldToView * glm::vec4(bulb.transform.position, 1.0f));
 			sp->setFloat("material.shiness", 32.0f);
-			glActiveTexture(GL_TEXTURE2);
 			sp->setInt("shadowMap", 2);
-			glBindTexture(GL_TEXTURE_2D, shadowMap);
-			glActiveTexture(GL_TEXTURE3);
 			sp->setInt("smStencil", 3);
-			glBindTexture(GL_TEXTURE_2D, stencil_view);
+
+			// temp 
+			DrawableDirLight* l = GetDefaultPortalSpace()->drawableLights.begin().operator*();
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, l->shadowmap->depth_view);
+			glActiveTexture(GL_TEXTURE3);
+			glBindTexture(GL_TEXTURE_2D, l->shadowmap->stencil_view);
 			glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_STENCIL_TEXTURE_MODE, GL_STENCIL_INDEX);
 			glActiveTexture(GL_TEXTURE0);
 		}
@@ -1117,123 +1040,6 @@ void DrawScene(const Cam& cam, Material* matOverride) {
 		scene2Renderer->Draw(matOverride);
 	}
 }
-
-void ConfigureFBOAndTextureForShadowmap(GLuint& fbo, GLuint& tex, GLuint& stencil_view) {
-	// https://stackoverflow.com/questions/27535727/opengl-create-a-depth-stencil-texture-for-reading
-	// https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glTexStorage2D.xhtml
-	glGenFramebuffers(1, &fbo);
-
-	// allocate space for the texture and set up a few parameters
-	glGenTextures(1, &tex);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, tex);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-	float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
-
-	// create stecil view for the texture
-	glGenTextures(1, &stencil_view);
-	glTextureView(stencil_view, GL_TEXTURE_2D, tex, GL_DEPTH24_STENCIL8, 0, 1, 0, 1);
-	glBindTexture(GL_TEXTURE_2D, stencil_view);
-	
-
-	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, tex, 0);
-	glDrawBuffer(GL_NONE);
-	glReadBuffer(GL_NONE);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-}	
-
-void RenderShadowmap(GLuint fbo, DirLight& light, list<Portal*> portalsToRender) {
-	glViewport(0, 0, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
-	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-	glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-	
-	
-	Cam cam = GetLightCam(light);
-	SetGlobalProjectionMatrix(cam.projection);
-	SetGlobalViewMatrix(cam.worldToView);
-
-	unordered_map<const Portal*, glm::mat4> wtvs;
-	
-
-	// set prevStencil  values to zero for each portal
-	for (Portal* p : portalsToRender) {
-		p->prevStencil = 0;
-		wtvs[p] = cam.worldToView;
-	}
-
-	{
-		// render portal planes first to not render the pixels that will be covered by them anyway ?
-		// render the scene first time
-		// redner portal planes again to apply stencil values and clear depth
-		// for each portal draw the scene again to update the depth map
-	}
-
-
-	// render the scene without portals
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_FRONT);
-	DrawScene(cam, smMat);
-	glDisable(GL_CULL_FACE);
-	
-	glEnable(GL_STENCIL_TEST);
-	// redner portal planes to apply stencil values
-	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-	for (const Portal* p : portalsToRender) {
-		glStencilFunc(GL_ALWAYS, p->stencilVal, 0xFF);
-
-		MeshRenderer* r = p->GetComponent<MeshRenderer>();
-		r->Draw(smMat);
-	}
-	
-	// draw portal planes again to clear depth where the portals are
-	// but only where the stencil is equal to the portal's stencil
-	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-	glDepthFunc(GL_ALWAYS);
-	for (const Portal* p : portalsToRender) {
-		glStencilFunc(GL_EQUAL, p->stencilVal, 0xFF);
-		
-		MeshRenderer* r = p->GetComponent<MeshRenderer>();
-		// use shader that sets depth to 1.0 (clears it)
-		r->Draw(clearDepthMat);
-	}
-	glDepthFunc(GL_LESS);
-	
-	// for each portal draw the scene again to update the depth map
-	for (const Portal* p : portalsToRender) {
-		cam.worldToView = wtvs[p];
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_FRONT);
-		wtvs[p] = DrawPortal(*p, cam, smMat);
-		glDisable(GL_CULL_FACE);
-	}
-
-	glDisable(GL_STENCIL_TEST);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glViewport(0, 0, screenWidth, screenHeight);
-}
-
-glm::mat4 GetLightSpaceMatrix(const DirLight& light) {
-	glm::mat4 lv = light.transform.GetInverseTransformMatrix();
-	glm::mat4 lp = glm::ortho(-light.extent, light.extent, -light.extent, light.extent,
-		light.nearPlane, light.farPlane);
-	return lp * lv;
-}
-
-Cam GetLightCam(const DirLight& light) {
-	Cam cam;
-	cam.worldToView = light.transform.GetInverseTransformMatrix();
-	cam.projection = glm::ortho(-light.extent, light.extent, -light.extent, light.extent,
-		light.nearPlane, light.farPlane);
-	return cam;
-}
-
 
 void OnPlayerTriggerEnter(const RayHit& hit) {
 
@@ -1334,23 +1140,138 @@ void PrerenderPortal(const Portal& p, GLuint& outCm) {
 	glViewport(0, 0, screenWidth, screenHeight);
 }
 
+void CalcVisibleDirLights() {
+	std::vector<PortalSpace*> spaces;
+	spaces.push_back(GetDefaultPortalSpace());
+	spaces.push_back(&portalSpace2);
+	// first insert lights that exist in a space itself
+	unordered_map<PortalSpace*, size_t> lightsInASpace;
+	for (PortalSpace* ps : spaces)
+	{
+		lightsInASpace.insert({ ps, 0 });
+		for (DirLight* l : ps->dirLights)
+		{
+			if (ps->drawableLights.size() < Lighting::MAX_DIR_LIGHT_COUNT)
+			{
+				DrawableDirLight* ddl = new DrawableDirLight();
+				ddl->light = l;
+				PerPortalDirLightData d;
+				d.direction = l->transform.rotation.GetForwardVector();
+				d.lightSpaceMatrix = l->GetLightSpaceMatrix();
+				d.stencilVal = 0;
+				ddl->perPortal.insert({ nullptr, d });
+				lightsInASpace[ps]++;
+				ps->drawableLights.insert(ddl);
+			}
+		}
+	}
 
-void ApplyLightValuesToShader(const Shader* shader, DirLight light)
+	// then insert lights incoming from neighbor spaces
+	for (PortalSpace* ps : spaces)
+	{
+		for (Portal* p : ps->GetPortals())
+		{
+			PortalSpace* other = p->dest->GetPortalSpace();
+			for (DrawableDirLight* l : other->drawableLights)
+			{
+				// must use only the other portalSpace's own lights
+				// break (not continue) because they're all in the front
+				if (l->light->GetPortalSpace() != other)
+					break;
+				if (lightsInASpace[ps] >= Lighting::MAX_DIR_LIGHT_COUNT)
+					break;
+
+				lightsInASpace[ps]++;
+				ps->drawableLights.insert(l);
+				PerPortalDirLightData d;
+				// TODO: calculate direction properly
+				d.direction = l->light->transform.rotation.GetForwardVector();
+				d.lightSpaceMatrix = l->light->GetLightSpaceMatrix() * p->GetPortallingMat();
+				d.stencilVal = l->perPortal.size();
+				l->perPortal.insert({ p, d });
+			}	
+			if (lightsInASpace[ps] >= Lighting::MAX_DIR_LIGHT_COUNT)
+				break;
+		}
+	}
+}
+
+
+std::vector<DrawableDirLight> GetVisibleDirLights(PortalSpace* space)
 {
-
+	// TODO: make this method better
+	if (space == nullptr)
+		space = GetDefaultPortalSpace();
+	vector<DrawableDirLight> res;
+	DrawableDirLight light;
+	light.light = &dirLight;
+	light.perPortal.insert({ nullptr, PerPortalDirLightData() });
+	size_t lightCount = 1;
+	for (Portal* p : space->GetPortals())
+	{
+		if (p->dest->GetPortalSpace() == space) 
+		{
+			lightCount++;
+			light.perPortal.insert({ p->dest, PerPortalDirLightData() });
+		}
+		if (lightCount >= Lighting::MAX_DIR_LIGHT_COUNT)
+			break;
+	}
+	res.push_back(light);
+	// to get visible dir lights i need to get all the lights in the portals space,
+	// and the lights from connected PortalSpaces(it can be the same space)
+	// but no more than max possible lights
+	// I also need to return portal through which the lihgt comes
+	// portal is nullptr if the light belongs to the space
+	return res;
 }
 
 
-void CreateGlobalMatricesBuffer() {
-	globalMatrices = new UniformBufferObject("GlobalMatrices", sizeof(glm::mat4) * 2);
-}
 
-void SetGlobalViewMatrix(const glm::mat4& view)
-{
-	globalMatrices->SetBufferSubData(0, sizeof(glm::mat4), glm::value_ptr(view));
-}
-
-void SetGlobalProjectionMatrix(const glm::mat4& projection)
-{
-	globalMatrices->SetBufferSubData(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(projection));
-}
+// what i need:
+// generate shadowmaps before adding the lights to lighting
+//		becasue the shadowmaps are reused
+//		
+// save the light/portal unique stencil values
+// and the matrices
+// To generate a light's shadowmap i need:
+//		a list of portals the light might interact with
+//		(a list og portals in the same Portal Space where the light is)
+//
+//	To generate shadowmap for all lights i need:
+//		a list of lights each of which has a list of portals
+// 
+// the light should probably store the info of which PortalSpace it belongs to
+// as should all actors
+// 
+// RenderShadowmap needs to store the PerPortalLightData
+// DrawableDirLight 
+// 
+// Shadows.cpp/Shadows.h need to have a pool of textures for the shadowmaps
+// only 4(depends on the number of lights) of them are used at the same time, anyway
+// 
+// used lights need to be removed after each PortalArea rendering
+// 
+// TODO:
+// update actor to include reference to portalSpace +
+// add default portal space +
+// add actors to portal space(s)
+// draw portal space instead of draw scene
+// update shadowmap rendering
+//		shadowmap pool
+// update rendering to properly use new shadowmaps and lights
+// write down the shadowmap generation algorithm
+// replace maps with unordered_maps where appropriate
+// calculate PerLightData light direction
+// add lightspace portal equation
+// free shadowmaps to the pool
+// 
+// 
+// 
+// TODO:
+//		keep track of the current portalSpace and change it when first rendering the scene
+//		update  CalcVisibleDirLights() as it doesn't create a comfortable data structure - i cannot get the lights that are in the space easily
+//		bugfix shadowmap generation as it doesn't seem to include all the portals
+//		select lights based on the currently rendered PortalSpace
+//		update everyplace to use PortalSpace::Draw() instead of DrawScene
+//

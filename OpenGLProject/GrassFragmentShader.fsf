@@ -1,4 +1,7 @@
 #version 440 core
+
+#define MAX_NUM_DIR_LIGHTS 4
+
 struct Material{
 	sampler2D texture_diffuse0;
 };
@@ -7,6 +10,7 @@ in VS_OUT {
     vec3 FragPos;
     vec3 Normal;
     vec2 texCoord;
+	vec4 fragPosLightSpace[MAX_NUM_DIR_LIGHTS];
     vec4 FragPosLightSpace;
     vec4 FragPosLightSpace2;
 } fs_in;

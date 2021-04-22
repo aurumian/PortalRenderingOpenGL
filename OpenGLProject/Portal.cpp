@@ -1,5 +1,8 @@
 #include "Portal.h"
 
+#include "Common.h"
+#include "MeshRenderer.h"
+#include "Material.h"
 
 glm::vec4 Portal::GetViewspacePortalEquation(glm::mat4 worldToView) const
 {
@@ -132,4 +135,55 @@ glm::mat4 Portal::GetPortallingMat() const{
 	return 	transform.GetTransformMatrix() *
 			negXZ *
 			dest->transform.GetInverseTransformMatrix();
+}
+
+
+
+
+
+void DrawPortalPlane(const Portal& p, const glm::mat4& worldToView) {
+	glStencilFunc(GL_ALWAYS, p.stencilVal, 0xFF);
+	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
+	MeshRenderer* r = p.GetComponent<MeshRenderer>();
+	Shader* sp = r->GetMaterial()->GetShader();
+
+	sp->Use();
+	sp->setVec3("lightColor", { 0.1f, 0.1f, 0.1f });
+	r->Draw();
+}
+
+glm::mat4 DrawPortalContents(const Portal& p, const Cam& cam, Material* matOverride) {
+
+	// update world to view matrix 
+	glm::mat4 newWTV = cam.worldToView * p.GetPortallingMat();
+
+	Cam c = cam;
+	c.worldToView = newWTV;
+
+	// draw the scene from a new perspective
+	{
+		glStencilFunc(GL_EQUAL, p.stencilVal, 0xFF);
+		glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+
+		Shader* sp;
+		if (matOverride == nullptr)
+			// temp
+			sp = sceneMat.GetShader();
+		else
+			sp = sceneMat.shader;
+		sp->Use();
+		sp->setVec4("portalPlaneEq", p.dest->GetViewspacePortalEquation(newWTV));
+
+		// temp
+		portallingMat = p.GetPortallingMat();
+
+		glEnable(GL_CLIP_DISTANCE0);
+		DrawScene(c, matOverride);
+		// enable this!!!
+		//p.GetPortalSpace()->Draw(c, matOverride);
+		glDisable(GL_CLIP_DISTANCE0);
+	}
+
+	return newWTV;
 }

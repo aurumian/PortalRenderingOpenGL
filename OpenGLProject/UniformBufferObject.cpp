@@ -19,7 +19,7 @@ UniformBufferObject::UniformBufferObject(const std::string& name, GLsizeiptr siz
 
 UniformBufferObject::~UniformBufferObject()
 {
-	--nextBindingPoint;
+	glDeleteBuffers(1, &id);
 }
 
 std::string UniformBufferObject::GetName() {

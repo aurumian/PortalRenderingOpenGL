@@ -11,17 +11,22 @@ struct Material{
 uniform sampler2D shadowMap;
 uniform usampler2D smStencil;
 
-struct DirLight{
-	vec3 direction;
-	float ambientStrength;
-	vec3 color;
-	float intensity;
-	sampler2D smDepth;
-	usampler2D smStencil;
-	uint smStencilRef; // stencil value of the current space
-};
+struct DirLight {			// base alignment | ofsset | aligned offset
+	vec3 direction;			// 16	|	0	|	0
+	float ambientStrength;	// 4	|	12	|	12
+	vec3 color;				// 16	|	16	|	16
+	float intensity;		// 4	|	28	|	28
+	uint smStencilRef;		// 4	|	32	|	32
+	mat4 lightSpaceMatrix;	// [0]16|	36	|	48
+							// [1]16|	64	|	64
+							// [2]16|	80	|	80
+							// [3]16|	96	|	96
+}; // total size - 112 bytes
 
-uniform DirLight dirLights[MAX_NUM_DIR_LIGHTS];
+layout (std140) uniform  DirLights {
+	DirLight dirLights[MAX_NUM_DIR_LIGHTS]; // 112	| 0		| 0
+	uint numDirLights;						// 4	| 448	| 448
+};
 
 struct PointLight{
 	vec3 position;
@@ -51,6 +56,7 @@ in VS_OUT {
     vec3 FragPos;
     vec3 Normal;
     vec2 texCoord;
+	vec4 fragPosLightSpace[MAX_NUM_DIR_LIGHTS];
     vec4 FragPosLightSpace;
     vec4 FragPosLightSpace2;
 } fs_in;
@@ -176,7 +182,7 @@ void main() {
 
 	vec3 res = //CalculateSpotLight(spotLight, normal, viewDir)
 			 + CalculatePointLight(pointLight, normal, viewDir)
-			 + CalculateDirLight(dirLight, normal, viewDir, fs_in.FragPosLightSpace, true)
+			 + CalculateDirLight(dirLights[0], normal, viewDir, fs_in.FragPosLightSpace, true)
 			 + CalculateDirLight(dirLight2, normal, viewDir, fs_in.FragPosLightSpace2, false)
 			 ;
 

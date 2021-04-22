@@ -3,6 +3,7 @@
 #include "Transform.h"
 #include "Mesh.h"
 #include "Physics.h"
+#include "Common.h"
 #include <list>
 
 class Component;
@@ -27,9 +28,18 @@ public:
 		return nullptr;
 	}
 
+	PortalSpace* GetPortalSpace() const;
+
 	Transform transform;
+
+	// TODO: move this to private
+	PortalSpace* portalSpace;
 protected:
 	virtual void OnRayHit(RayHit hit) {}
 
 	vector<Component*> components;
+
+private:
+	
+	friend class PortalSpace;
 };

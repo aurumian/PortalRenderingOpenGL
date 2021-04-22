@@ -22,3 +22,8 @@ void Actor::AddComponent(Component* comp)
 	}
 }
 
+PortalSpace* Actor::GetPortalSpace() const
+{
+	return portalSpace;
+}
+

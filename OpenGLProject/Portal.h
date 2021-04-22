@@ -1,8 +1,12 @@
 #pragma once
 
 #include "Actor.h"
+#include <unordered_map>
+#include <list>
 
 class PortalRenderTree;
+struct Cam;
+class Material;
 
 typedef uint8_t stencil_t;
 
@@ -51,4 +55,14 @@ class PortalRenderTree {
 public:
 	PortalRenderTreeNode* root;
 };
+
+/*@pre Stencil testing must be enabled
+  @pre Stencil buffer should be cleared with 0's
+ */
+void DrawPortalPlane(const Portal& p, const glm::mat4& worldToView);
+
+void UpdateStencil(const std::list<Portal*>& pl, std::unordered_map<const Portal*, glm::mat4>& wtvs);
+
+glm::mat4 DrawPortalContents(const Portal& p1, const Cam& cam, Material* matOverride = nullptr);
+
 
