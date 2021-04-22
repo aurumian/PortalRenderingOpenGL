@@ -13,7 +13,7 @@ class Shader;
 class UniformBufferObject;
 class DirLight;
 struct PerPortalDirLightData;
-class DrawableDirLight;
+class PortalShadowedDirLight;
 class ShadowmapTexture;
 
 // mapping of the GPU side DirLight struct onto CPU
@@ -33,6 +33,7 @@ struct GpuDirLights
 {
 	GpuDirLight lights[N];
 	uint32_t numDirLights;
+	float _pad[3];
 };
 
 class Lighting
@@ -82,7 +83,7 @@ Cam GetLightCam(const DirLight& light);
 * needs to take into account all the lights that exist in the space
 * and all the lights that are coming into the space
 */
-std::vector<DrawableDirLight> GetVisibleDirLights(PortalSpace* space);
+std::vector<PortalShadowedDirLight> GetVisibleDirLights(PortalSpace* space);
 
 struct PerPortalDirLightData {
 	uint32_t stencilVal;
@@ -90,10 +91,18 @@ struct PerPortalDirLightData {
 	glm::vec3 direction;
 };
 
-class DrawableDirLight
+class PortalShadowedDirLight
 {
 public:
 	DirLight* light;
 	ShadowmapTexture* shadowmap;
 	std::map<Portal*, PerPortalDirLightData> perPortal;
+};
+
+class DrawableDirLight
+{
+public:
+	PortalShadowedDirLight* psdl;
+	// to query perPortal of PortalShadowedDirLight
+	Portal* portal;
 };

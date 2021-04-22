@@ -87,6 +87,9 @@
     <ClCompile Include="Common.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PortalSpace.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="BulbFragmentShader.fsf">
@@ -203,6 +206,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PortalSpace.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

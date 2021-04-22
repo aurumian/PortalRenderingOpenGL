@@ -82,7 +82,7 @@ vec3 GetSpecularColor(){
 // TODO: write more flexible functions for calculating shadows and light
 // for portals: only the outside light should give ambience, etc
 
-float CalculateDirShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir, bool useRef) {
+float CalculateDirShadow(DirLight light, vec4 fragPosLightSpace, vec3 normal, vec3 lightDir, bool useRef) {
 	
 	vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
 	projCoords = projCoords * 0.5f + 0.5f;
@@ -100,7 +100,7 @@ float CalculateDirShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir, boo
 	// for lights outside the portal
 	uint stencil = texture(smStencil, projCoords.xy).r;
 	if(useRef)
-		shadow = stencil == smRef ? shadow : 1.0;
+		shadow = stencil == light.smStencilRef ? shadow : 1.0;
 	else if (stencil == smRef)
 		shadow = stencil == smRef2 ? shadow : 1.0;
 
@@ -122,10 +122,10 @@ vec3 CalculateDirLight(DirLight light, vec3 normal, vec3 viewDir, vec4 lightSpac
 	vec3 reflectDir = reflect(-lightDir, normal);
 	vec3 specular = pow(max(dot(viewDir, reflectDir), 0.0f), material.shiness) * GetSpecularColor();
 	// shadows
-	float shadow = CalculateDirShadow(lightSpacePos, normal, lightDir, useRef);
+	float shadow = CalculateDirShadow(light, lightSpacePos, normal, lightDir, useRef);
 	
-	vec3 lightColor = light.color * light.intensity;
-	return (ambient + (1.0 - shadow) *(diffuse + specular)) * lightColor;
+	vec3 lightCol = light.color * light.intensity;
+	return (ambient + (1.0 - shadow) *(diffuse + specular)) * lightCol;
 }
 
 vec3 CalculatePointLight(PointLight light, vec3 normal, vec3 viewDir){
@@ -143,8 +143,8 @@ vec3 CalculatePointLight(PointLight light, vec3 normal, vec3 viewDir){
 	vec3 reflectDir = reflect(-lightDir, normal);
 	vec3 specular = pow(max(dot(viewDir, reflectDir), 0.0f), material.shiness) * GetSpecularColor();
 	
-	vec3 lightColor = light.color * light.intensity;
-	return (ambient + diffuse + specular) * lightColor * attenuation;
+	vec3 lightCol = light.color * light.intensity;
+	return (ambient + diffuse + specular) * lightCol * attenuation;
 }
 
 vec3 CalculateSpotLight(SpotLight light, vec3 normal, vec3 viewDir){
@@ -181,12 +181,13 @@ void main() {
 	vec3 viewDir = normalize(-fs_in.FragPos);
 
 	vec3 res = //CalculateSpotLight(spotLight, normal, viewDir)
-			 + CalculatePointLight(pointLight, normal, viewDir)
-			 + CalculateDirLight(dirLights[0], normal, viewDir, fs_in.FragPosLightSpace, true)
-			 + CalculateDirLight(dirLight2, normal, viewDir, fs_in.FragPosLightSpace2, false)
-			 ;
+			 //+ CalculatePointLight(pointLight, normal, viewDir)
+			 vec3(0.0, 0.0, 0.0);
 
-	
+	for (int i = 0; i < numDirLights; ++i)
+	{
+		res += CalculateDirLight(dirLights[i], normal, viewDir, fs_in.fragPosLightSpace[i], true);
+	}	
 	
     FragColor = vec4(res, 1.0f);
 }

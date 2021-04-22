@@ -55,17 +55,23 @@ layout (std140) uniform  DirLights {
 };
 
 void main(){ 
+	vec4 worldPos = objectToWorld * vec4(aPos,  1.0f);
 	// clip everyting in front of the portal (between virtual camera and the portal)
-	vec4 viewPos = worldToView * objectToWorld * vec4(aPos,  1.0f);
+	vec4 viewPos = worldToView * worldPos;
 	gl_ClipDistance[0] = dot(viewPos, portalPlaneEq);
 	vs_out.Normal = normalMatrix * aNormal;
-	vs_out.FragPos = (worldToView * objectToWorld * vec4(aPos,  1.0f)).xyz;
+	vs_out.FragPos = (worldToView * worldPos).xyz;
 	vs_out.texCoord = TexCoord;
 	//vs_out.FragPosLightSpace = lightSpaceMatrix * objectToWorld * vec4(aPos,  1.0f);
-	vs_out.FragPosLightSpace = dirLights[0].lightSpaceMatrix * objectToWorld * vec4(aPos,  1.0f);
+	for (int i = 0; i < numDirLights; ++i)
+	{
+		vs_out.fragPosLightSpace[i] = dirLights[i].lightSpaceMatrix * worldPos;
+	}
+	//vs_out.FragPosLightSpace = dirLights[0].lightSpaceMatrix * objectToWorld * vec4(aPos,  1.0f);
 
-	vs_out.FragPosLightSpace2 = lightSpaceMatrix2 * objectToWorld * vec4(aPos,  1.0f);
-	gl_Position = projection * worldToView * objectToWorld * vec4(aPos,  1.0f);
+	//vs_out.FragPosLightSpace2 = lightSpaceMatrix2 * objectToWorld * vec4(aPos,  1.0f);
+	//vs_out.FragPosLightSpace2 = dirLights[2].lightSpaceMatrix * objectToWorld * vec4(aPos,  1.0f);
+	gl_Position = projection * worldToView * worldPos;
 	
 }
 

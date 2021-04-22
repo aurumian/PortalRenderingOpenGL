@@ -3,6 +3,7 @@
 #include "Common.h"
 #include "MeshRenderer.h"
 #include "Material.h"
+#include "PortalSpace.h"
 
 glm::vec4 Portal::GetViewspacePortalEquation(glm::mat4 worldToView) const
 {
@@ -171,7 +172,7 @@ glm::mat4 DrawPortalContents(const Portal& p, const Cam& cam, Material* matOverr
 			// temp
 			sp = sceneMat.GetShader();
 		else
-			sp = sceneMat.shader;
+			sp = matOverride->GetShader();
 		sp->Use();
 		sp->setVec4("portalPlaneEq", p.dest->GetViewspacePortalEquation(newWTV));
 
@@ -179,9 +180,9 @@ glm::mat4 DrawPortalContents(const Portal& p, const Cam& cam, Material* matOverr
 		portallingMat = p.GetPortallingMat();
 
 		glEnable(GL_CLIP_DISTANCE0);
-		DrawScene(c, matOverride);
+		//DrawScene(c, matOverride);
 		// enable this!!!
-		//p.GetPortalSpace()->Draw(c, matOverride);
+		p.dest->GetPortalSpace()->Draw(c, matOverride);
 		glDisable(GL_CLIP_DISTANCE0);
 	}
 

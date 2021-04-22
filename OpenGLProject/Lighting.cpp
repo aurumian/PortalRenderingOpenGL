@@ -1,5 +1,6 @@
 #include "Lighting.h"
 #include "UniformBufferObject.h"
+#include "PortalSpace.h"
 
 Lighting::Lighting()
 {
@@ -13,24 +14,22 @@ Lighting::~Lighting() {
 
 void Lighting::AddLights(const PortalSpace* ps, const Cam& cam)
 {
-	for (DrawableDirLight* ddl : ps->drawableLights)
+	for (const DrawableDirLight* ddlp : ps->drawableDirLights)
 	{
-		DirLight* light = ddl->light;
-		for (auto& pair : ddl->perPortal)
+		const DrawableDirLight& ddl = *ddlp;
+		DirLight* light = ddl.psdl->light;
+		if (dirLights.numDirLights >= MAX_DIR_LIGHT_COUNT)
 		{
-			if (dirLights.numDirLights >= MAX_DIR_LIGHT_COUNT)
-			{
-				break;
-			}
-			PerPortalDirLightData& data = pair.second;
-			GpuDirLight& l = dirLights.lights[dirLights.numDirLights++];
-			l.direction = glm::mat3(cam.worldToView) * data.direction;
-			l.ambientStrength = light->ambientStrenght;
-			l.color = light->color;
-			l.intensity = light->intensity;
-			l.smStencilRef = data.stencilVal;
-			l.lightSpaceMatrix = data.lightSpaceMatrix;
+			break;
 		}
+		PerPortalDirLightData& data = ddl.psdl->perPortal[ddl.portal];
+		GpuDirLight& l = dirLights.lights[dirLights.numDirLights++];
+		l.direction = glm::mat3(cam.worldToView) * data.direction;
+		l.ambientStrength = light->ambientStrenght;
+		l.color = light->color;
+		l.intensity = light->intensity;
+		l.smStencilRef = data.stencilVal;
+		l.lightSpaceMatrix = data.lightSpaceMatrix;
 	}
 
 }

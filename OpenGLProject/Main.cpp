@@ -29,6 +29,7 @@
 #include "Lighting.h"
 #include "Shadows.h"
 #include "Common.h"
+#include "PortalSpace.h"
 
 using namespace std;
 
@@ -619,11 +620,12 @@ int main() {
 	dps->AddPortal(&p7);
 	dps->dirLights.insert(&dirLight);
 	dirLight.portalSpace = dps;
-	dirLight.intensity = 2.0;
 	portalSpace2.AddActor(&ps2);
 	portalSpace2.AddActor(&bulb);
 	portalSpace2.AddPortal(&p1);
 	portalSpace2.AddPortal(&p2);
+
+	currentPortalSpace = dps;
 	
 
 	// initialize mouse input
@@ -663,7 +665,8 @@ int main() {
 	// configure dir light
 	dirLight.transform.position = glm::vec3(6.0f, 8.2f, 6.0f);
 	dirLight.transform.rotation = glm::vec3(-126.295, -41.2203, 180);
-
+	dirLight.intensity = 2.0f;
+	dirLight.ambientStrenght = 0.1f;
 
 	// testing 
 	GLuint cm;
@@ -712,7 +715,7 @@ int main() {
 
 				// render the shadowmap for each light
 				//RenderShadowmap(fbo, dirLight, portalsToRender);
-				shadows->RenderShadowmap(*(*dps->drawableLights.begin()));
+				shadows->RenderShadowmap(*(*dps->shadowmappedLights.begin()));
 			}
 
 			Cam cam;
@@ -735,7 +738,7 @@ int main() {
 				sceneMat.shader->setMat4("lightSpaceMatrix2", dirLight.GetLightSpaceMatrix() * p5.GetPortallingMat());
 				
 				//DrawScene(cam);
-				GetDefaultPortalSpace()->Draw(cam);
+				currentPortalSpace->Draw(cam);
 				lighting->ClearLights();
 			}
 
@@ -999,11 +1002,11 @@ void DrawScene(const Cam& cam, Material* matOverride) {
 
 			sp->setVec3("pointLight.position", cam.worldToView * glm::vec4(bulb.transform.position, 1.0f));
 			sp->setFloat("material.shiness", 32.0f);
-			sp->setInt("shadowMap", 2);
-			sp->setInt("smStencil", 3);
+			//sp->setInt("shadowMap", 2);
+			//sp->setInt("smStencil", 3);
 
 			// temp 
-			DrawableDirLight* l = GetDefaultPortalSpace()->drawableLights.begin().operator*();
+			PortalShadowedDirLight* l = GetDefaultPortalSpace()->shadowmappedLights.begin().operator*();
 			glActiveTexture(GL_TEXTURE2);
 			glBindTexture(GL_TEXTURE_2D, l->shadowmap->depth_view);
 			glActiveTexture(GL_TEXTURE3);
@@ -1020,6 +1023,7 @@ void DrawScene(const Cam& cam, Material* matOverride) {
 		}
 		sceneRenderer->Draw(matOverride);
 		
+		// temp
 		if (matOverride == nullptr) {
 			if (renderDepth == 0) {
 				sp->setFloat("dirLight.intensity", 0.0f);
@@ -1063,6 +1067,7 @@ void OnPlayerTriggerEnter(const RayHit& hit) {
 		t.position = posMat * glm::vec4(t.position, 1.0f);
 		t.rotation = p2.rotation.GetQuaterion() * rot.GetQuaterion() * glm::inverse(p1.rotation.GetQuaterion()) * t.rotation.GetQuaterion();
 		player.SetCameraTransfrom(t);
+		currentPortalSpace = p->dest->GetPortalSpace();
 	}
 }
 
@@ -1145,23 +1150,21 @@ void CalcVisibleDirLights() {
 	spaces.push_back(GetDefaultPortalSpace());
 	spaces.push_back(&portalSpace2);
 	// first insert lights that exist in a space itself
-	unordered_map<PortalSpace*, size_t> lightsInASpace;
 	for (PortalSpace* ps : spaces)
 	{
-		lightsInASpace.insert({ ps, 0 });
 		for (DirLight* l : ps->dirLights)
 		{
-			if (ps->drawableLights.size() < Lighting::MAX_DIR_LIGHT_COUNT)
+			if (ps->shadowmappedLights.size() < Lighting::MAX_DIR_LIGHT_COUNT)
 			{
-				DrawableDirLight* ddl = new DrawableDirLight();
-				ddl->light = l;
+				PortalShadowedDirLight* sdl = new PortalShadowedDirLight();
+				sdl->light = l;
 				PerPortalDirLightData d;
 				d.direction = l->transform.rotation.GetForwardVector();
 				d.lightSpaceMatrix = l->GetLightSpaceMatrix();
 				d.stencilVal = 0;
-				ddl->perPortal.insert({ nullptr, d });
-				lightsInASpace[ps]++;
-				ps->drawableLights.insert(ddl);
+				sdl->perPortal.insert({ nullptr, d });
+				PortalSpace::shadowmappedLights.insert(sdl);
+				ps->drawableDirLights.insert(new DrawableDirLight({sdl, nullptr}));
 			}
 		}
 	}
@@ -1172,38 +1175,37 @@ void CalcVisibleDirLights() {
 		for (Portal* p : ps->GetPortals())
 		{
 			PortalSpace* other = p->dest->GetPortalSpace();
-			for (DrawableDirLight* l : other->drawableLights)
+			for (PortalShadowedDirLight* l : PortalSpace::shadowmappedLights)
 			{
 				// must use only the other portalSpace's own lights
-				// break (not continue) because they're all in the front
 				if (l->light->GetPortalSpace() != other)
-					break;
-				if (lightsInASpace[ps] >= Lighting::MAX_DIR_LIGHT_COUNT)
+					continue;
+				if (ps->drawableDirLights.size() >= Lighting::MAX_DIR_LIGHT_COUNT)
 					break;
 
-				lightsInASpace[ps]++;
-				ps->drawableLights.insert(l);
+				ps->shadowmappedLights.insert(l);
 				PerPortalDirLightData d;
 				// TODO: calculate direction properly
 				d.direction = l->light->transform.rotation.GetForwardVector();
-				d.lightSpaceMatrix = l->light->GetLightSpaceMatrix() * p->GetPortallingMat();
+				d.lightSpaceMatrix = l->light->GetLightSpaceMatrix() * p->dest->GetPortallingMat();
 				d.stencilVal = l->perPortal.size();
-				l->perPortal.insert({ p, d });
+				l->perPortal.insert({ p->dest, d });
+				ps->drawableDirLights.insert(new DrawableDirLight({ l, p->dest }));
 			}	
-			if (lightsInASpace[ps] >= Lighting::MAX_DIR_LIGHT_COUNT)
+			if (ps->drawableDirLights.size() >= Lighting::MAX_DIR_LIGHT_COUNT)
 				break;
 		}
 	}
 }
 
 
-std::vector<DrawableDirLight> GetVisibleDirLights(PortalSpace* space)
+std::vector<PortalShadowedDirLight> GetVisibleDirLights(PortalSpace* space)
 {
 	// TODO: make this method better
 	if (space == nullptr)
 		space = GetDefaultPortalSpace();
-	vector<DrawableDirLight> res;
-	DrawableDirLight light;
+	vector<PortalShadowedDirLight> res;
+	PortalShadowedDirLight light;
 	light.light = &dirLight;
 	light.perPortal.insert({ nullptr, PerPortalDirLightData() });
 	size_t lightCount = 1;
@@ -1245,7 +1247,7 @@ std::vector<DrawableDirLight> GetVisibleDirLights(PortalSpace* space)
 // as should all actors
 // 
 // RenderShadowmap needs to store the PerPortalLightData
-// DrawableDirLight 
+// PortalShadowedDirLight 
 // 
 // Shadows.cpp/Shadows.h need to have a pool of textures for the shadowmaps
 // only 4(depends on the number of lights) of them are used at the same time, anyway
@@ -1255,7 +1257,7 @@ std::vector<DrawableDirLight> GetVisibleDirLights(PortalSpace* space)
 // TODO:
 // update actor to include reference to portalSpace +
 // add default portal space +
-// add actors to portal space(s)
+// add actors to portal space(s) +
 // draw portal space instead of draw scene
 // update shadowmap rendering
 //		shadowmap pool
@@ -1269,9 +1271,13 @@ std::vector<DrawableDirLight> GetVisibleDirLights(PortalSpace* space)
 // 
 // 
 // TODO:
-//		keep track of the current portalSpace and change it when first rendering the scene
-//		update  CalcVisibleDirLights() as it doesn't create a comfortable data structure - i cannot get the lights that are in the space easily
-//		bugfix shadowmap generation as it doesn't seem to include all the portals
-//		select lights based on the currently rendered PortalSpace
-//		update everyplace to use PortalSpace::Draw() instead of DrawScene
-//
+//		keep track of the current portalSpace and change it when entering a portal +
+//		update  CalcVisibleDirLights() as it doesn't create a comfortable data structure - i cannot get the lights that are in the space easily +
+//		bugfix shadowmap generation as it doesn't seem to include all the portals +
+//		select lights based on the currently rendered PortalSpace +
+//		update everyplace to use PortalSpace::Draw() instead of DrawScene +
+//		update shader to iterate through lights +
+//		fix a bug where shadowmap sometimes has a huge offset - it's probably just that dirLights[0] is a different light (cause i use a hashset) +
+//		add lightspace portalspace equation to sample shadowmaps properly
+//		ambient lighting should only come from the PortalSpace's own lights
+//		

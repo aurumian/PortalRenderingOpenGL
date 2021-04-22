@@ -7,6 +7,7 @@
 #include "Portal.h"
 #include "Common.h"
 #include "Material.h"
+#include "PortalSpace.h"
 
 Material* smMat;
 Material* clearDepthMat;
@@ -31,7 +32,7 @@ void Shadows::FreePool()
 	}
 }
 
-void Shadows::RenderShadowmap(DrawableDirLight& light)
+void Shadows::RenderShadowmap(PortalShadowedDirLight& light)
 {
 	// get a shadowmap from the pool
 	if (stPool.size() == 0)
