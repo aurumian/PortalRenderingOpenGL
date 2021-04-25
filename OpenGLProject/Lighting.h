@@ -24,8 +24,10 @@ public:
 	glm::vec3 color;
 	float intensity;
 	uint32_t smStencilRef;
-	float _pad[3];
+	uint32_t smIndex;
+	float _pad[2];
 	glm::mat4 lightSpaceMatrix;
+	glm::vec4 lsPortalEq; // lightspace portal equation - for better shadow sampling
 };
 
 template<size_t N>
@@ -53,9 +55,14 @@ public:
 
 	void SendToGPU();
 
+	void SetShadowmaps(Shader* shader);
+
 protected:
 	UniformBufferObject* ubo;
 	GpuDirLights<MAX_DIR_LIGHT_COUNT> dirLights;
+
+	ShadowmapTexture* shadowmaps[MAX_DIR_LIGHT_COUNT];
+	size_t numShadowmaps;
 };
 
 class DirLight : public Actor
@@ -79,16 +86,12 @@ public:
 
 Cam GetLightCam(const DirLight& light);
 
-/*
-* needs to take into account all the lights that exist in the space
-* and all the lights that are coming into the space
-*/
-std::vector<PortalShadowedDirLight> GetVisibleDirLights(PortalSpace* space);
 
 struct PerPortalDirLightData {
 	uint32_t stencilVal;
 	glm::mat4 lightSpaceMatrix;
 	glm::vec3 direction;
+	glm::vec4 lsPortalEq;
 };
 
 class PortalShadowedDirLight

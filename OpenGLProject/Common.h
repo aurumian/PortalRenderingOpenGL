@@ -21,6 +21,8 @@ class PortalSpace;
 struct Cam {
 	glm::mat4 worldToView;
 	glm::mat4 projection;
+	float nearPlane = 0.0f;
+	bool isOrtho = false;
 };
 
 extern UniformBufferObject* globalMatrices;

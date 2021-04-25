@@ -133,6 +133,8 @@ Actor bulb;
 // PortalSpace 2
 PortalSpace portalSpace2;
 
+void ClearVisibleDirLights();
+
 
 int main() {
 	string s;
@@ -179,7 +181,7 @@ int main() {
 	// load and generate the texture
 	int width, height, nrChannels;
 	stbi_set_flip_vertically_on_load(true);
-	unsigned char* data = stbi_load("C:\\Users\\123\\Desktop\\container2.jpg", &width, &height, &nrChannels, 0);
+	unsigned char* data = stbi_load("D:\\MyFiles\\SomeStuff\\container2.jpg", &width, &height, &nrChannels, 0);
 	if (data) {
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(diffTex.id);
@@ -199,7 +201,7 @@ int main() {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	data = stbi_load("C:\\Users\\123\\Desktop\\container2spec.jpg", &width, &height, &nrChannels, 0);
+	data = stbi_load("D:\\MyFiles\\SomeStuff\\container2spec.jpg", &width, &height, &nrChannels, 0);
 	if (data) {
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(specTex.id);
@@ -525,7 +527,7 @@ int main() {
 		// portal 4
 		{
 			Transform t;
-			t.position = { 0.0f, portalDims.y, -2.2f };
+			t.position = { 0.0f, portalDims.y, -2.1f };
 			t.rotation = Rotator({ 0.0f, 0.0f, 0.0f });
 			p4.transform = t;
 			p4.stencilVal = 4;
@@ -579,7 +581,7 @@ int main() {
 		// portal 7
 		{
 			Transform t;
-			t.position = {-2.1f, portalDims.y, 0.0f };
+			t.position = {-2.1f , portalDims.y, 0.0f };
 			t.rotation = glm::vec3(0.0f, -90.0f, 0.0f);
 			p7.transform = t;
 			p7.stencilVal = 1;
@@ -664,9 +666,12 @@ int main() {
 	
 	// configure dir light
 	dirLight.transform.position = glm::vec3(6.0f, 8.2f, 6.0f);
+	//dirLight.transform.position = glm::vec3(6.0f, 8.2f, 6.0f) -
+	//	dirLight.transform.rotation.GetForwardVector() * 11.0f;
 	dirLight.transform.rotation = glm::vec3(-126.295, -41.2203, 180);
 	dirLight.intensity = 2.0f;
-	dirLight.ambientStrenght = 0.1f;
+	dirLight.ambientStrenght = 0.2f;
+	dirLight.farPlane = 200.0f;
 
 	// testing 
 	GLuint cm;
@@ -708,38 +713,39 @@ int main() {
 			portalsToRender.push_front(&p7);
 			//portalsToRender.push_front(&p8);
 
+			// temp 
+			//{
+			//	Transform t = p7.transform;
+			//	static glm::vec3 rot = glm::vec3(0.0f, -10.0f, 0.0f);;
+			//	//rot.y += 0.5f;
+			//	t.rotation = rot;
+			//	t.position = { -2.1f , portalDims.y, 5.0f };
+			//	p7.transform = t;
+			//	t = p5.transform;
+			//	t.position = glm::vec3(2.1f, portalDims.y, -5.0f);
+			//	p5.transform = t;
+			//	ClearVisibleDirLights();
+			//	CalcVisibleDirLights();
+			//}
+
 			// render shadowmaps
 			{
-				// get all the lights
-				//vector<DirLight*> lights = GetVisibleDirLights(nullptr);
-
-				// render the shadowmap for each light
-				//RenderShadowmap(fbo, dirLight, portalsToRender);
-				shadows->RenderShadowmap(*(*dps->shadowmappedLights.begin()));
+				if (PortalSpace::shadowmappedLights.size() > 0)
+					shadows->RenderShadowmap(*(*dps->shadowmappedLights.begin()));
 			}
 
 			Cam cam;
+			cam.worldToView = camera.GetWorldToViewMatrix();
+			cam.projection = camera.GetProjectionMatrix();
 			renderDepth = 0;
+
+
 
 			// draw the scene the first time
 			//if (false)
 			{
-				// temp
-				portallingMat = glm::mat4(1.0f);
-				// temp
-				cam.worldToView = camera.GetWorldToViewMatrix();
-				cam.projection = camera.GetProjectionMatrix();
-				sceneMat.shader->Use();
-				sceneMat.shader->setUInt("smRef", 0);
-				sceneMat.shader->setUInt("smRef2", 7);
-				sceneMat.shader->setFloat("dirLight2.intensity", 2.0f);
 
-				// temp
-				sceneMat.shader->setMat4("lightSpaceMatrix2", dirLight.GetLightSpaceMatrix() * p5.GetPortallingMat());
-				
-				//DrawScene(cam);
 				currentPortalSpace->Draw(cam);
-				lighting->ClearLights();
 			}
 
 			// draw shadowmap on fsq
@@ -854,7 +860,7 @@ int main() {
 				// set prevStencil  values to zero for each portal
 				for (Portal* p : portalsToRender) {
 					p->prevStencil = 0;
-					wtvs[p] = camera.GetWorldToViewMatrix();
+					wtvs[p] = cam.worldToView;
 				}
 
 
@@ -1162,6 +1168,7 @@ void CalcVisibleDirLights() {
 				d.direction = l->transform.rotation.GetForwardVector();
 				d.lightSpaceMatrix = l->GetLightSpaceMatrix();
 				d.stencilVal = 0;
+				d.lsPortalEq = glm::vec4(0.0f);
 				sdl->perPortal.insert({ nullptr, d });
 				PortalSpace::shadowmappedLights.insert(sdl);
 				ps->drawableDirLights.insert(new DrawableDirLight({sdl, nullptr}));
@@ -1186,10 +1193,39 @@ void CalcVisibleDirLights() {
 				ps->shadowmappedLights.insert(l);
 				PerPortalDirLightData d;
 				// TODO: calculate direction properly
-				d.direction = l->light->transform.rotation.GetForwardVector();
-				d.lightSpaceMatrix = l->light->GetLightSpaceMatrix() * p->dest->GetPortallingMat();
+				// since portallingMat doesn't use scale
+				// we can use upper right corner of the portalling matrix 
+				// to modify the direction
+				glm::mat4 pmat = p->dest->GetPortallingMat();
+				d.direction = glm::mat3(pmat) * l->light->transform.rotation.GetForwardVector();
+				d.lightSpaceMatrix = l->light->GetLightSpaceMatrix() * pmat;
 				d.stencilVal = l->perPortal.size();
+				d.lsPortalEq = p->GetViewspacePortalEquation(d.lightSpaceMatrix, true);
 				l->perPortal.insert({ p->dest, d });
+
+				//temp
+				// this helped me to properly setup lightspace portal equation
+				{
+					glm::vec4 pos(-2.79703f, 0.170776f, -0.793854f, 1.0f);
+					//pos = glm::vec4(-0.748512, 4.19552, 1.65872, 1.0f);
+					glm::mat4 m = GetLightCam(*l->light).worldToView * pmat;
+					glm::mat4 proj = GetLightCam(*l->light).projection;
+					glm::vec4 pos2 = m * pos;
+					//glm::vec4 pos3 = m * glm::vec4(p7.transform.position, 1.0f);
+					//pos.z = pos.z * 0.5f + 0.5f; // because Portal::GetViewspacePortalEquation(glm::mat4 worldToView)
+					// works only with positive z
+					glm::vec4 pe2 = p->GetViewspacePortalEquation(m);
+					glm::vec4 p4 = proj * glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
+					glm::vec4 pe3 = p->GetNdcSpacePortalEquation(d.lightSpaceMatrix);
+					pos = d.lightSpaceMatrix * pos;
+					glm::vec4 pos3(glm::vec3(pos) / pos.w, 1.0f);
+
+					float dot = glm::dot(d.lsPortalEq, pos);
+					float dot2 = glm::dot(pe2, pos2);
+					float dot3 = glm::dot(pe3, pos3);
+				}
+			
+
 				ps->drawableDirLights.insert(new DrawableDirLight({ l, p->dest }));
 			}	
 			if (ps->drawableDirLights.size() >= Lighting::MAX_DIR_LIGHT_COUNT)
@@ -1198,36 +1234,23 @@ void CalcVisibleDirLights() {
 	}
 }
 
-
-std::vector<PortalShadowedDirLight> GetVisibleDirLights(PortalSpace* space)
+void ClearVisibleDirLights()
 {
-	// TODO: make this method better
-	if (space == nullptr)
-		space = GetDefaultPortalSpace();
-	vector<PortalShadowedDirLight> res;
-	PortalShadowedDirLight light;
-	light.light = &dirLight;
-	light.perPortal.insert({ nullptr, PerPortalDirLightData() });
-	size_t lightCount = 1;
-	for (Portal* p : space->GetPortals())
-	{
-		if (p->dest->GetPortalSpace() == space) 
-		{
-			lightCount++;
-			light.perPortal.insert({ p->dest, PerPortalDirLightData() });
-		}
-		if (lightCount >= Lighting::MAX_DIR_LIGHT_COUNT)
-			break;
-	}
-	res.push_back(light);
-	// to get visible dir lights i need to get all the lights in the portals space,
-	// and the lights from connected PortalSpaces(it can be the same space)
-	// but no more than max possible lights
-	// I also need to return portal through which the lihgt comes
-	// portal is nullptr if the light belongs to the space
-	return res;
-}
+	std::vector<PortalSpace*> spaces;
+	spaces.push_back(GetDefaultPortalSpace());
+	spaces.push_back(&portalSpace2);
 
+	for (auto* space : spaces)
+	{
+		for (auto* ddl : space->drawableDirLights)
+			delete ddl;
+		space->drawableDirLights.clear();
+	}
+
+	for (auto* sl : PortalSpace::shadowmappedLights)
+		delete sl;
+	PortalSpace::shadowmappedLights.clear();
+}
 
 
 // what i need:
@@ -1279,5 +1302,6 @@ std::vector<PortalShadowedDirLight> GetVisibleDirLights(PortalSpace* space)
 //		update shader to iterate through lights +
 //		fix a bug where shadowmap sometimes has a huge offset - it's probably just that dirLights[0] is a different light (cause i use a hashset) +
 //		add lightspace portalspace equation to sample shadowmaps properly
-//		ambient lighting should only come from the PortalSpace's own lights
+//		ambient lighting should only come from the PortalSpace's own lights (add a variable to light that says whether this light is space's own light or modify ambientStrenght when adding?)
+//		calculate light matrices to fit frustum (especially when inside portals)
 //		

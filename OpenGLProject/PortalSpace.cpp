@@ -6,6 +6,9 @@
 
 std::unordered_set<PortalShadowedDirLight*> PortalSpace::shadowmappedLights;
 
+// temp
+extern Actor bulb;
+
 void PortalSpace::AddActor(Actor* actor)
 {
 	if (actor->portalSpace == this)
@@ -46,20 +49,15 @@ void PortalSpace::Draw(const Cam& cam, Material* matOverride)
 		{
 			Shader* sp = mr->GetMaterial()->GetShader();
 			sp->Use();
-			sp->setInt("shadowMap", 2);
-			sp->setInt("smStencil", 3);
-			// set shadowmaps for the shader
-			// temp
-			PortalShadowedDirLight* l = shadowmappedLights.begin().operator*();
-			glActiveTexture(GL_TEXTURE2);
-			glBindTexture(GL_TEXTURE_2D, l->shadowmap->depth_view);
-			glActiveTexture(GL_TEXTURE3);
-			glBindTexture(GL_TEXTURE_2D, l->shadowmap->stencil_view);
-			glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_STENCIL_TEXTURE_MODE, GL_STENCIL_INDEX);
-			glActiveTexture(GL_TEXTURE0);
 			sp->setFloat("material.shiness", 32.0f);
-			//sp->setVec3("pointLight.position", cam.worldToView * glm::vec4(bulb.transform.position, 1.0f));
+			// set shadowmaps for the shader
+			lighting->SetShadowmaps(sp);
+			
 
+			//temp
+			sp->setVec3("pointLight.position", cam.worldToView * glm::vec4(bulb.transform.position, 1.0f));
+			sp->setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
+			sp->setVec3("pointLight.position", cam.worldToView * glm::vec4(bulb.transform.position, 1.0f));
 
 
 			// set normal matrix

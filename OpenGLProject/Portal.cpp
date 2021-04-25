@@ -5,19 +5,44 @@
 #include "Material.h"
 #include "PortalSpace.h"
 
-glm::vec4 Portal::GetViewspacePortalEquation(glm::mat4 worldToView) const
+
+// need to update to support ortho projection matrices - the location is different from the view
+glm::vec4 Portal::GetViewspacePortalEquation(glm::mat4 worldToView, float isOrtho) const
 {
 	glm::vec3 normal = glm::transpose(glm::inverse(glm::mat3(worldToView * transform.GetTransformMatrix()))) * glm::vec3(0.0f, 0.0f, 1.0f);
 	glm::vec3 q = worldToView * glm::vec4(transform.position, 1.0f);
-	// make sure (pos, 1.0f) dot equation < 0 when the point is between the camera and the portal plane
-	if (glm::dot(normal, q) < 0)
-		normal = -normal;
+	if (isOrtho)
+	{
+		// for orthograthic projection normal dot forward must be greater than zero
+		if (glm::dot(normal, { 0.0f, 0.0f, 1.0f }) < 0.0f)
+			normal = -normal;
+	}
+	else
+	{
+		// make sure (pos, 1.0f) dot equation < 0 when the point is between the camera and the portal plane
+		if (glm::dot(normal, q) < 0.0f) // == dot((0.0, 0.0, 0.0, 1.0), (normal, -dot(normal,q)) > 0.0f
+			normal = -normal;
+	}
 	return glm::vec4(normal, -glm::dot(normal, q));
 	// this equation can be used to check a point position around this portal:
 	// if (point.pos, 1.0f) dot equation < 0 when the point is between the camera and the portal plane
-	// else it's between the plane and camera's far plane
+	// else it's between the portal plane and the camera's far plane
 }
 
+// for now tested only for orthogonal projection matrix
+glm::vec4 Portal::GetNdcSpacePortalEquation(glm::mat4 worldToClip) const
+{
+	glm::vec3 normal = glm::transpose(glm::inverse(glm::mat3(worldToClip * transform.GetTransformMatrix()))) * glm::vec3(0.0f, 0.0f, 1.0f);
+	glm::vec4 pos = worldToClip * glm::vec4(transform.position, 1.0f);
+	glm::vec3 q = glm::vec3(pos) / pos.w;
+	// make sure (pos, 1.0f) dot equation < 0.0 when the point is between the camera and the portal plane
+	if (-normal.z - glm::dot(normal, q) > 0.0f) // == dot((0.0f, 0.0f, -1.0f, 1.0f), (normal, -dot(normal,q)) > 0.0f
+		normal = -normal;
+	return glm::vec4(normal, -glm::dot(normal, q));
+	// this equation can be used to check a point position around this portal:
+	// if (point.pos, 1.0f) dot equation < 0 when the point is between the camera' near plane and the portal plane
+	// else it's between the portal plane and the camera's far plane
+}
 
 PortalRenderTree Portal::GetPortalRenderTree(const list<Portal*>& portals) {
 	
@@ -174,14 +199,12 @@ glm::mat4 DrawPortalContents(const Portal& p, const Cam& cam, Material* matOverr
 		else
 			sp = matOverride->GetShader();
 		sp->Use();
-		sp->setVec4("portalPlaneEq", p.dest->GetViewspacePortalEquation(newWTV));
+		sp->setVec4("portalPlaneEq", p.dest->GetViewspacePortalEquation(newWTV, c.isOrtho));
 
 		// temp
 		portallingMat = p.GetPortallingMat();
 
 		glEnable(GL_CLIP_DISTANCE0);
-		//DrawScene(c, matOverride);
-		// enable this!!!
 		p.dest->GetPortalSpace()->Draw(c, matOverride);
 		glDisable(GL_CLIP_DISTANCE0);
 	}

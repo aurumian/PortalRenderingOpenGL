@@ -29,7 +29,9 @@ public:
 			maxRenderDepth = v;
 	}
 
-	glm::vec4 GetViewspacePortalEquation(glm::mat4 worldToView) const;
+	glm::vec4 GetViewspacePortalEquation(glm::mat4 worldToView, float isOrtho = false) const;
+
+	glm::vec4 GetNdcSpacePortalEquation(glm::mat4 worldToClip) const;
 
 	glm::mat4 GetPortallingMat() const;
 

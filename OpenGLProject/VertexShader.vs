@@ -14,9 +14,6 @@ layout (std140) uniform GlobalMatrices
 
 uniform mat4 objectToWorld;
 
-uniform mat4 lightSpaceMatrix;
-uniform mat4 lightSpaceMatrix2;
-
 uniform vec4 portalPlaneEq;
 
 uniform mat3 normalMatrix;
@@ -43,16 +40,18 @@ struct DirLight {			// base alignment | ofsset | aligned offset
 	vec3 color;				// 16	|	16	|	16
 	float intensity;		// 4	|	28	|	28
 	uint smStencilRef;		// 4	|	32	|	32
-	mat4 lightSpaceMatrix;	// [0]16|	36	|	48
+	uint smIndex;			// 4	|   36	|	36
+	mat4 lightSpaceMatrix;	// [0]16|	40	|	48
 							// [1]16|	64	|	64
 							// [2]16|	80	|	80
 							// [3]16|	96	|	96
-}; // total size - 112 bytes
+	vec4 lsPortalEq;		// 16	|	112	|	112
+}; // total size - 128 bytes
 
 layout (std140) uniform  DirLights {
-	DirLight dirLights[MAX_NUM_DIR_LIGHTS]; // 112	| 0		| 0
-	uint numDirLights;						// 4	| 448	| 448
-};
+	DirLight dirLights[MAX_NUM_DIR_LIGHTS]; // 128	| 0		| 0
+	uint numDirLights;						// 4	| 512	| 512
+}; // total size - 528(because the uint is padded to 16 bytes when at the end)
 
 void main(){ 
 	vec4 worldPos = objectToWorld * vec4(aPos,  1.0f);
