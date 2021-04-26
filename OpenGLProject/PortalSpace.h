@@ -11,6 +11,11 @@ class Portal;
 class PortalSpace
 {
 public:
+
+	typedef std::unordered_set<Portal*> PortalContainer;
+	typedef PortalContainer::iterator PortalIterator;
+	typedef const PortalContainer& PortalContainerConstRef;
+
 	// all drawable lights of a portal space
 	static std::unordered_set<PortalShadowedDirLight*> shadowmappedLights;
 
@@ -22,14 +27,15 @@ public:
 
 	void RemoveActor(Actor* actor);
 
-	void Draw(const Cam& cam, Material* matOverride = nullptr);
+	void Draw(const Cam* cam = nullptr, Material* matOverride = nullptr);
 
 	void AddPortal(Portal* p);
 
-	const std::unordered_set<Portal*>& GetPortals();
+	PortalContainerConstRef GetPortals();
+
 
 protected:
 	std::unordered_set<Actor*> actors;
 	std::unordered_set<MeshRenderer*> renderers;
-	std::unordered_set<Portal*> portals;
+	PortalContainer portals;
 };

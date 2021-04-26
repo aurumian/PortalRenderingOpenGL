@@ -79,13 +79,13 @@ void processInput(GLFWwindow* window, Shader* shader = NULL) {
 	if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
 		cout << camera.GetTransform().ToString() << endl;
 	}
-	
+
 	double mouseX, mouseY;
 	glfwGetCursorPos(window, &mouseX, &mouseY);
-	pc.ProcessInput(window,(float)mouseX - oldMouseX, (float)mouseY - oldMouseY);
+	pc.ProcessInput(window, (float)mouseX - oldMouseX, (float)mouseY - oldMouseY);
 	oldMouseX = (float)mouseX;
 	oldMouseY = (float)mouseY;
-	
+
 	if (shader) {
 		const float alphaDelta = 0.005f;
 		float newAlpha = shader->getFloat("mixAlpha");
@@ -121,6 +121,7 @@ Portal p5;
 Portal p6;
 Portal p7;
 Portal p8;
+static PortalRenderTree prTree;
 
 size_t renderDepth;
 
@@ -254,49 +255,49 @@ int main() {
 
 	//define vertices to draw
 	float vertices[] = {
-	//position			  //normals			//texture coordinates
-	// Front face
-	-0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f,  0.0f, 0.0f, // Bottom-left
-	0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f, // top-right
-	0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
-	0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f, // top-right
-	-0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-	-0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, // top-left
-	// Back face
-	-0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // bottom-left
-	0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, // bottom-right
-	0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, // top-right
-	0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, // top-right
-	-0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, // top-left
-	-0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // bottom-left
-	// Left face
-	-0.5f,  0.5f,  0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f, // top-right
-	-0.5f,  0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f, // top-left
-	-0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, // bottom-left
-	-0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, // bottom-left
-	-0.5f, -0.5f,  0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, // bottom-right
-	-0.5f,  0.5f,  0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f, // top-right
-	// Right face
-	0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, // top-left
-	0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, // bottom-right
-	0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, // top-right         
-	0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, // bottom-right
-	0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, // top-left
-	0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, // bottom-left     
-	// Bottom face
-	-0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, // top-right
-	0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f, // top-left
-	0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, // bottom-left
-	0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, // bottom-left
-	-0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, // bottom-right
-	-0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, // top-right
-	// Top face
-	-0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, // top-left
-	0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, // bottom-right
-	0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, // top-right     
-	0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, // bottom-right
-	-0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, // top-left
-	-0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f  // bottom-left        
+		//position			  //normals			//texture coordinates
+		// Front face
+		-0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f,  0.0f, 0.0f, // Bottom-left
+		0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f, // top-right
+		0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
+		0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f, // top-right
+		-0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+		-0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, // top-left
+		// Back face
+		-0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // bottom-left
+		0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, // bottom-right
+		0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, // top-right
+		0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, // top-right
+		-0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, // top-left
+		-0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // bottom-left
+		// Left face
+		-0.5f,  0.5f,  0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f, // top-right
+		-0.5f,  0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f, // top-left
+		-0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, // bottom-left
+		-0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, // bottom-left
+		-0.5f, -0.5f,  0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, // bottom-right
+		-0.5f,  0.5f,  0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f, // top-right
+		// Right face
+		0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, // top-left
+		0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, // bottom-right
+		0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, // top-right         
+		0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, // bottom-right
+		0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, // top-left
+		0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, // bottom-left     
+		// Bottom face
+		-0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, // top-right
+		0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f, // top-left
+		0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, // bottom-left
+		0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, // bottom-left
+		-0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, // bottom-right
+		-0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, // top-right
+		// Top face
+		-0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, // top-left
+		0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, // bottom-right
+		0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, // top-right     
+		0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, // bottom-right
+		-0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, // top-left
+		-0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f  // bottom-left        
 	};
 	unsigned int indices[] = {
 		0,	1,	2,
@@ -314,7 +315,7 @@ int main() {
 	};
 
 	Vertex* v = (Vertex*)vertices;
-	vector<Vertex> verts(v, v+36);
+	vector<Vertex> verts(v, v + 36);
 	vector<GLuint> inds(indices, indices + 36);
 	vector<Texture> texs;
 	texs.push_back(diffTex);
@@ -325,10 +326,10 @@ int main() {
 
 	// create flloor mesh
 	verts.clear();
-	verts.push_back({glm::vec3(1, 0, -1), glm::vec3(0,1,0), glm::vec2(1, 1)});
-	verts.push_back({glm::vec3(1, 0, 1), glm::vec3(0,1,0), glm::vec2(1, 0)});
-	verts.push_back({glm::vec3(-1, 0, 1), glm::vec3(0,1,0), glm::vec2(0, 0)});
-	verts.push_back({glm::vec3(-1, 0, -1), glm::vec3(0,1,0), glm::vec2(0, 1)});
+	verts.push_back({ glm::vec3(1, 0, -1), glm::vec3(0,1,0), glm::vec2(1, 1) });
+	verts.push_back({ glm::vec3(1, 0, 1), glm::vec3(0,1,0), glm::vec2(1, 0) });
+	verts.push_back({ glm::vec3(-1, 0, 1), glm::vec3(0,1,0), glm::vec2(0, 0) });
+	verts.push_back({ glm::vec3(-1, 0, -1), glm::vec3(0,1,0), glm::vec2(0, 1) });
 	inds.clear();
 	inds.push_back(0);
 	inds.push_back(1);
@@ -339,7 +340,7 @@ int main() {
 	Mesh floor = Mesh(verts, inds);
 
 	// create portal plane mesh
-	glm::vec2 portalDims = glm::vec2(0.55f, 1.2f );
+	glm::vec2 portalDims = glm::vec2(0.55f, 1.2f);
 	//glm::vec2 portalDims = glm::vec2(0.5f, 0.5f);
 	verts.clear();
 	verts.push_back({ glm::vec3(portalDims.x, -portalDims.y, 0.0f), glm::vec3(0,0,-1), glm::vec2(1, 0) });
@@ -361,9 +362,11 @@ int main() {
 	verts.push_back({ glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0,0,-1), glm::vec2(0, 0) });
 	Mesh fsq = Mesh(verts, inds);
 
-	// create GlobalMatrices Unniform Buffer Object
+	// create some global objects
 	CreateGlobalMatricesBuffer();
+	CreatePortalBlockUbo();
 	lighting = new Lighting();
+	shadows = new Shadows();
 
 	ShaderCompiler comp;
 	//create shaderProgram
@@ -372,24 +375,28 @@ int main() {
 	Shader* sp = comp.Compile();
 	sp->BindUBO(globalMatrices);
 	lighting->BindUboToShader(sp);
+	sp->BindUBO(GetPortalBlockUbo());
 
 	// create bulb shader program
 	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\BulbFragmentShader.fsf");
 	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
 	Shader* bulbSP = comp.Compile();
 	bulbSP->BindUBO(globalMatrices);
+	bulbSP->BindUBO(GetPortalBlockUbo());
 
 	// create grass shader program
 	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\GrassFragmentShader.fsf");
 	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
 	Shader* grassShader = comp.Compile();
 	grassShader->BindUBO(globalMatrices);
+	grassShader->BindUBO(GetPortalBlockUbo());
 
 	// create shadowmap shader
 	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\smVertex.vs");
 	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\smFragment.fsf");
 	shadowmapShader = comp.Compile();
 	shadowmapShader->BindUBO(globalMatrices);
+	shadowmapShader->BindUBO(GetPortalBlockUbo());
 
 	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\fsqVertex.vs");
 	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\fsqFragment.fsf");
@@ -404,6 +411,7 @@ int main() {
 	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\clearDepthFragment.fsf");
 	Shader* clearDepthShader = comp.Compile();
 	clearDepthShader->BindUBO(globalMatrices);
+	clearDepthShader->BindUBO(GetPortalBlockUbo());
 
 	contMat.shader = sp;
 	sceneMat.shader = grassShader;
@@ -473,32 +481,30 @@ int main() {
 
 	// Create portals
 	{
-		
+
 		// portal 1
 		{
 			Transform t;
 			t.position = { 0.0f, portalDims.y, 54.15f };
-			t.rotation = glm::vec3(0.0f, 180.0f, 0.0f);
+			t.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
 			p1.transform = t;
 			p1.stencilVal = 1;
-			p1.dest = &p3;
-			p1.SetMaxRenderDepth(3);
+			p1.dest = &p4;
 			PlaneCollider* col = new PlaneCollider();
 			col->halfDims = portalDims * 1.5f;
 			col->isTrigger = true;
 			p1.AddComponent(col);
 			Physics::Instance()->AddCollider(col);
 		}
-		
+
 		// portal 2
 		{
 			Transform t;
 			t.position = { 0.0f, portalDims.y, 35.5f };
-			t.rotation = Rotator({ 0.0f, 180.0f, 0.0f });
+			t.rotation = Rotator({ 0.0f, 0.0f, 0.0f });
 			p2.transform = t;
 			p2.stencilVal = 2;
-			p2.dest = &p4;
-			p2.SetMaxRenderDepth(3);
+			p2.dest = &p3;
 			PlaneCollider* col = new PlaneCollider();
 			col->halfDims = portalDims * 1.5f;
 			col->isTrigger = true;
@@ -514,9 +520,8 @@ int main() {
 			t.rotation = Rotator({ 0.0f, 0.0f, 0.0f });
 			p3.transform = t;
 			p3.stencilVal = 3;
-			p3.dest = &p1;
+			p3.dest = &p2;
 			p3.cbsPortals.push_back(&p2);
-			p3.SetMaxRenderDepth(3);
 			PlaneCollider* col = new PlaneCollider();
 			col->halfDims = portalDims * 1.5f;
 			col->isTrigger = true;
@@ -531,8 +536,7 @@ int main() {
 			t.rotation = Rotator({ 0.0f, 0.0f, 0.0f });
 			p4.transform = t;
 			p4.stencilVal = 4;
-			p4.dest = &p2;
-			p4.SetMaxRenderDepth(3);
+			p4.dest = &p1;
 			p4.cbsPortals.push_back(&p1);
 			//p4.cbsPortals.push_back(&p8);
 			PlaneCollider* col = new PlaneCollider();
@@ -546,13 +550,13 @@ int main() {
 		{
 			Transform t;
 			t.position = { 2.1f, portalDims.y, 0.0f };
+			//t.position = { 2.f, portalDims.y, 6.3f };
 			t.rotation = glm::vec3(0.0f, 90.0f, 0.0f);
 			//t.position = { 1.5f, portalDims.y, 3.0f };
 			//t.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
 			p5.transform = t;
 			p5.stencilVal = 1;
-			p5.dest = &p7;
-			p5.SetMaxRenderDepth(3);
+			p5.dest = &p8;
 			//p5.cbsPortals.push_back(&p8);
 			//p5.cbsPortals.push_back(&p1);
 			PlaneCollider* col = new PlaneCollider();
@@ -569,8 +573,7 @@ int main() {
 			t.rotation = glm::vec3(0.0f, -90.0f, 0.0f);
 			p6.transform = t;
 			p6.stencilVal = 1;
-			p6.dest = &p5;
-			p6.SetMaxRenderDepth(3);
+			p6.dest = &p7;
 			PlaneCollider* col = new PlaneCollider();
 			col->halfDims = portalDims * 1.5f;
 			col->isTrigger = true;
@@ -581,12 +584,12 @@ int main() {
 		// portal 7
 		{
 			Transform t;
-			t.position = {-2.1f , portalDims.y, 0.0f };
+			t.position = { -2.1f , portalDims.y, 0.0f };
+			//t.position = { 0, portalDims.y, 6.3f };
 			t.rotation = glm::vec3(0.0f, -90.0f, 0.0f);
 			p7.transform = t;
 			p7.stencilVal = 1;
-			p7.dest = &p5;
-			p7.SetMaxRenderDepth(3);
+			p7.dest = &p6;
 			//p7.cbsPortals.push_back(&p6);
 			PlaneCollider* col = new PlaneCollider();
 			col->halfDims = portalDims * 1.5f;
@@ -602,8 +605,7 @@ int main() {
 			t.rotation = glm::vec3(0.0f, 90.0f, 0.0f);
 			p8.transform = t;
 			p8.stencilVal = 1;
-			p8.dest = &p7;
-			p8.SetMaxRenderDepth(3);
+			p8.dest = &p5;
 			PlaneCollider* col = new PlaneCollider();
 			col->halfDims = portalDims * 1.5f;
 			col->isTrigger = true;
@@ -626,9 +628,11 @@ int main() {
 	portalSpace2.AddActor(&bulb);
 	portalSpace2.AddPortal(&p1);
 	portalSpace2.AddPortal(&p2);
+	portalSpace2.AddPortal(&p6);
+	portalSpace2.AddPortal(&p8);
 
 	currentPortalSpace = dps;
-	
+
 
 	// initialize mouse input
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -651,33 +655,25 @@ int main() {
 
 	// prepare a PortalRenderTree for easier portal rendering
 	// it also optimizes calculations since it precomputes portalling matricies
-	list<Portal*> pl;
-	pl.push_back(&p1);
-	pl.push_back(&p2);
-	pl.push_back(&p3);
-	pl.push_back(&p4);
-	pl.push_back(&p5);
-	pl.push_back(&p7);
-	PortalRenderTree tree = Portal::GetPortalRenderTree(pl);
+	prTree.ConstructTree(currentPortalSpace->GetPortals());
 
-	GLuint fbo;
-
-	Shadows::ConfigureFBOAndTextureForShadowmap(fbo, shadowMap, stencil_view);
-	
 	// configure dir light
-	dirLight.transform.position = glm::vec3(6.0f, 8.2f, 6.0f);
-	//dirLight.transform.position = glm::vec3(6.0f, 8.2f, 6.0f) -
-	//	dirLight.transform.rotation.GetForwardVector() * 11.0f;
-	dirLight.transform.rotation = glm::vec3(-126.295, -41.2203, 180);
-	dirLight.intensity = 2.0f;
-	dirLight.ambientStrenght = 0.2f;
-	dirLight.farPlane = 200.0f;
+	{
+		dirLight.transform.position = glm::vec3(6.0f, 8.2f, 6.0f);
+		//dirLight.transform.position = glm::vec3(6.0f, 8.2f, 6.0f) -
+		//	dirLight.transform.rotation.GetForwardVector() * 11.0f;
+		dirLight.transform.rotation = glm::vec3(-126.295, -41.2203, 180);
+		dirLight.intensity = 2.0f;
+		dirLight.ambientStrenght = 0.2f;
+		//dirLight.farPlane = 200.0f;
+	}
 
 	// testing 
-	GLuint cm;
+	//GLuint cm;
 	//PrerenderPortal(p4, cm);
 	// end testing
-	shadows = new Shadows();
+
+
 
 	// 
 	CalcVisibleDirLights();
@@ -687,7 +683,7 @@ int main() {
 	while (!glfwWindowShouldClose(window)) {
 		Time::Update();
 		mc->Update();
-		
+
 		//input
 		processInput(window, sp);
 
@@ -744,12 +740,11 @@ int main() {
 			// draw the scene the first time
 			//if (false)
 			{
-
-				currentPortalSpace->Draw(cam);
+				currentPortalSpace->Draw(&cam);
 			}
 
 			// draw shadowmap on fsq
-			if (false) 
+			if (false)
 			{
 				glDisable(GL_DEPTH_TEST);
 				glBindTexture(GL_TEXTURE_2D, shadowMap);
@@ -759,70 +754,6 @@ int main() {
 				glEnable(GL_DEPTH_TEST);
 			}
 
-			// divide stencil range by portals
-			//if (false)
-			{
-				vector<Portal*> pv;
-				pv.push_back(&p1);
-				pv.push_back(&p2);
-				pv.push_back(&p3);
-				pv.push_back(&p4);
-				pv.push_back(&p5);
-				//pv.push_back(&p6);
-				pv.push_back(&p7);
-				//pv.push_back(&p8);
-				struct Helper {
-					Portal* portal;
-					list<Portal*> pq;
-					size_t count = 0;
-				};
-				size_t total = 0;
-				size_t depth = 0;
-				vector<Helper> hv;
-				for (Portal* p : pv) {
-					list<Portal*> q;
-					q.push_front(p);
-					hv.push_back({ p, q, 0 });
-				}
-
-				bool done = false;
-				size_t numEmpty = 0;
-				while (!done) {
-					depth += 1;
-					for (Helper& h : hv) {
-						size_t len = h.pq.size();
-						if (len == 0)
-							numEmpty++;
-						if (numEmpty == hv.size())
-							done = true;
-						for (size_t i = 0; i < len && !done; i++) {
-							Portal* p = h.pq.front();
-							h.pq.pop_front();
-							total++;
-							h.count++;
-							if (total >= 255) {
-								done = true;
-								break;
-							}
-							//if (depth >= p->GetMaxRenderDepth())
-							if (depth >= MAX_PORTAL_DEPTH)
-								continue;
-							for (Portal* po : p->cbsPortals)
-								h.pq.push_back(po);
-						}
-
-						if (done)
-							break;
-					}
-				}
-				hv[0].portal->stencilVal = 1;
-				size_t count = 1;
-				for (size_t i = 1; i < hv.size(); ++i) {
-					count += (uint8_t)hv[i - 1].count;
-					hv[i].portal->stencilVal = (stencil_t)count;
-				}
-			}
-			
 			// draw prerendered portal
 			if (false)
 			{
@@ -831,13 +762,13 @@ int main() {
 				//t.rotation = Rotator({ 0.0f, 0.0f, 0.0f });
 				Shader* s = ppRenderer->GetMaterial()->GetShader();
 				glm::mat4 scale = glm::mat4(1.0f);
-				scale[0][0] = 0.5f/portalDims.x;
-				scale[1][1] = 0.5f/portalDims.y;
+				scale[0][0] = 0.5f / portalDims.x;
+				scale[1][1] = 0.5f / portalDims.y;
 				glm::mat4 scale2 = glm::mat4(1.0f);
 				//scale2[0][0] = 8.0f/6.0f;
 				//scale2[1][1] = 0.5f / portalDims.y;
 				s->Use();
-				glm::vec3 psCamPos = scale2 *scale * t.GetInverseTransformMatrix() * glm::vec4(camera.GetTransform().position, 1.0f);
+				glm::vec3 psCamPos = scale2 * scale * t.GetInverseTransformMatrix() * glm::vec4(camera.GetTransform().position, 1.0f);
 				s->setVec3("psCamPos", psCamPos);
 				// do we need this here?
 				{
@@ -849,75 +780,127 @@ int main() {
 				ppRenderer->Draw();
 			}
 
-			// draw portal(s)
+			// draw portals - new algo
 			//if (false)
 			{
-				
+				// algorithm(using PortalRenderTree):
+				// having rendered the scene
+				// get portals at depth 1
+				// render portal planes setting the stencil values if the depth test passes
+				// clear depth where the portals' respective stencil values are set (is one fullscreen render call better than a draw call for each plane? - it can work only for depth 1)
+				// render contents of each of the portals
+				// depth 2+:
+				// get portals at the depth
+				// render portal planes setting the stencil values:
+				//	at depth 2+ rendering portals is harder since i can only increment stencil values (I can download AMD_stencil_operation_extended extension for amd cards to change it to any value)
+				//	without extension:
+				//		the stencil values have to be updated incrementally
+				//		variation 1:
+				//		render all portal planes each time incrementing the stencil value until the stencil value is what it's supposed to be for the portal
+				//		(remove the portal from the list when the value is right, keep rendering until the list is empty)
+				//		if portals are grouped by curent stencil value (parent portal's value at firts iteration) gpu instancing can be used to make rendering faster (if the portals use the same mesh)
+				//		variation 2:
+				//		render the portal planes without modifying the stencil (so that stencil does not interfere with depth oreder of portals)
+				//		since we render the portal planes anyway we can draw them before rendering the contents of the parent portal(s) (which is an optimization - a selective z-prepass) - wrong 'cause it obstructs scene objects
+				//		set depth test to equal
+				//		set stencil values for each portal individually (incrementally obviously)
+				//		slightly increases number of draw calls (compared to variation 1)
+				//		removes some of the overhead of variation 1 and makes the algo simpler
+				//	with extension:
+				//		set stencil test to equal to parent's
+				//		draw portal planes (obviously in parent's stencil) without modifying stencil
+				//		set depth test to equal
+				//		draw the portal planes  setting the new stencil values
+				//		return depth test to previous value
+				//	render the portal's contents
+				// keep rendering until there's no more portals left
+				// 
+				//
 
-				
-				unordered_map<const Portal*, glm::mat4> wtvs;
+				// compute the portal rendering tree
+				//prTree = Portal::GetPortalRenderTree(currentPortalSpace->GetPortals());
 
-				// set prevStencil  values to zero for each portal
-				for (Portal* p : portalsToRender) {
-					p->prevStencil = 0;
-					wtvs[p] = cam.worldToView;
-				}
-
-
-				// set some shader values that don't change during the frame
+				// clear stencil
 				glClear(GL_STENCIL_BUFFER_BIT);
 				glEnable(GL_STENCIL_TEST);
-				while (!portalsToRender.empty()) {
 
-					// render each portal plane with clear color, setting stencil buffer value to portal id
-					UpdateStencil(portalsToRender, wtvs);
+				// for all possible depths
+				size_t depth = 1;
+				for (auto iter = prTree.Begin(); iter != prTree.End(); depth++)
+				{
 
-					glClear(GL_DEPTH_BUFFER_BIT);
-
-					++renderDepth;
-					// draw portals
-					for (const Portal* p : portalsToRender) {
-						cam.worldToView = wtvs[p];
-						sceneMat.shader->Use();
-
-						// temp
-						sceneMat.shader->setUInt("smRef", p->stencilVal);
-						sceneMat.shader->setUInt("smRef2", p->stencilVal);
-
-						sceneMat.shader->setFloat("dirLight2.intensity", 2.0f);
-						wtvs[p] = DrawPortalContents(*p, cam);
-					}
-
-					for (Portal* p : portalsToRender) {
-						p->prevStencil = p->stencilVal;
-					}
-
-					
-
-					size_t len = portalsToRender.size();
-					for (size_t i = 0; i < len; ++i) {
-						Portal* p = portalsToRender.front();
-						portalsToRender.pop_front();
-						//if (renderDepth < p->GetMaxRenderDepth()) {
-						if (renderDepth < MAX_PORTAL_DEPTH) {
-							for (Portal* port : p->cbsPortals) {
-								port->prevStencil = p->stencilVal;
-								port->stencilVal = p->stencilVal;
-								portalsToRender.push_back(port);
-								wtvs[port] = wtvs[p];
+					// update stencil
+					auto it = iter;
+					if (depth == 1)
+					{
+						{
+							while (it != prTree.End() && (*it)->GetDepth() == depth)
+							{
+								DrawPortalPlane(*(*it), true);
+								++it;
 							}
 						}
 					}
-					
+					else
+					{
+						GLint dFunc;
+						glGetIntegerv(GL_DEPTH_FUNC, &dFunc);
+						glDepthFunc(GL_EQUAL);
+						auto& i = it;
+						while (i != prTree.End() && (*i)->GetDepth() == depth)
+						{
+							BeginDrawInsidePortal(*(*i)->GetParent(), cam);
+							glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
+							stencil_t s = (*i)->GetParent()->GetStencil();
+							while (s < (*i)->GetStencil())
+							{
+								glStencilFunc(GL_EQUAL, ++s, 0xFF);
+								DrawPortalPlane(**i);
+							}
+							EndDrawInsidePortal();
+							++i;
+						}
+						glDepthFunc(dFunc);
+						glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+					}
 
+					// clear depth - right now i don't need depth buffer, so i can just clear it
+					// alternatively i can use glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE), glDepthFunc(GL_ALWAYS) and a shader that clears the depth
+					// for each drawn plane (or a fullscreen plane with glStencilFunc(GL_GREATER, 0, 0xFF), glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP) - possible only the first time)
+					glClear(GL_DEPTH_BUFFER_BIT);
+
+					// render the portal planes inside the portals without changing the stencil values
+
+					{
+						auto i = it;
+						while (i != prTree.End() && (*i)->GetDepth() == depth + 1)
+						{
+							BeginDrawInsidePortal(*(*i)->GetParent(), cam);
+							DrawPortalPlane(*(i), false);
+							EndDrawInsidePortal();
+							++i;
+						}
+
+					}
+
+					// Render portals' contents
+					{
+						while (iter != prTree.End() && (*iter)->GetDepth() == depth)
+						{
+							DrawPortalContents(**iter, cam);
+							++iter;
+						}
+					}
 				}
+
 				glDisable(GL_STENCIL_TEST);
 			}
+
 		}
 
 		shadows->FreePool();
 
-		
+
 		//check all the events and swap the buffers
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -927,47 +910,6 @@ int main() {
 	//clean glfw resources
 	glfwTerminate();
 	return 0;
-}
-
-void UpdateStencil(const list<Portal*>& pl, unordered_map<const Portal*, glm::mat4>& wtvs) {
-	// first rendering of portals
-	if (pl.front()->prevStencil == 0) {
-		for (const Portal* p : pl) {
-			DrawPortalPlane(*p, wtvs[p]);
-		}
-	}
-	else {
-		map <uint8_t, map<uint8_t, Portal*>> pmap;
-		for (Portal* p : pl) {
-			if (pmap.find(p->prevStencil) == pmap.end()) {
-				pmap.insert({ p->prevStencil, map<uint8_t, Portal*>()});
-			}
-			pmap[p->prevStencil][p->stencilVal] = p;
-		}
-
-		MeshRenderer* r = pl.front()->GetComponent<MeshRenderer>();
-		Shader* sp = r->GetMaterial()->GetShader();
-
-		sp->Use();
-		sp->setVec3("lightColor", { 0.1f, 0.1f, 0.1f });
-		glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
-
-		for (auto& m : pmap) {
-			//glStencilFuncSeparate(GL_FRONT, GL_EQUAL, m.second.begin()->second->prevStencil, 0xFF);
-			//glStencilFuncSeparate(GL_BACK, GL_NEVER, m.second.begin()->second->prevStencil, 0xFF);
-			glStencilFunc(GL_EQUAL, m.second.begin()->second->prevStencil, 0xFF);
-			for (auto& e : m.second) {
-				Portal* p = e.second;
-				r = p->GetComponent<MeshRenderer>();
-				SetGlobalViewMatrix(wtvs[p]);
-				p->stencilVal += 1;
-				p->prevStencil += 1;
-				r->Draw();
-			}
-			m.second.erase(m.second.begin());
-		}
-
-	}
 }
 
 
@@ -995,7 +937,7 @@ void DrawScene(const Cam& cam, Material* matOverride) {
 			// temp
 			sp->setMat4("lightSpaceMatrix", dirLight.GetLightSpaceMatrix() * portallingMat);
 			sp->setVec3("lightColor", lightColor);
-			
+
 
 			// temp
 			if (renderDepth == 1)
@@ -1028,20 +970,20 @@ void DrawScene(const Cam& cam, Material* matOverride) {
 			sp->SetMat3("normalMatrix", normalMatrix);
 		}
 		sceneRenderer->Draw(matOverride);
-		
+
 		// temp
 		if (matOverride == nullptr) {
 			if (renderDepth == 0) {
 				sp->setFloat("dirLight.intensity", 0.0f);
 				sp->setFloat("dirLight2.intensity", 2.0f);
 			}
-			else{
+			else {
 				sp->setFloat("dirLight.intensity", 2.0f);
 				sp->setFloat("dirLight2.intensity", 0.0f);
 			}
 			sp->setFloat("dirLight.ambientStrength", 0.0f);
 			sp->setFloat("dirLight2.ambientStrength", 0.0f);
-			
+
 		}
 		if (matOverride == nullptr) {
 			glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(cam.worldToView * ps2.transform.GetTransformMatrix())));
@@ -1054,13 +996,13 @@ void DrawScene(const Cam& cam, Material* matOverride) {
 void OnPlayerTriggerEnter(const RayHit& hit) {
 
 	// a matrix and a quaternion that are needed for translation of position and rotation
-	static const glm::mat4 negXZ{-1.0f, 0.0f, 0.0f, 0.0f,
+	static const glm::mat4 negXZ{ -1.0f, 0.0f, 0.0f, 0.0f,
 								0.0f, 1.0f, 0.0f, 0.0f,
 								0.0f, 0.0f, -1.0f, 0.0f,
 								0.0f, 0.0f, 0.0f, 1.0f };
 	static const Rotator rot = glm::vec3(0.0f, 180.0f, 0.0f);
 
-	
+
 	Portal* p = dynamic_cast<Portal*>(hit.collider->GetOwner());
 	// entered a portal
 	if (p != nullptr) {
@@ -1074,6 +1016,7 @@ void OnPlayerTriggerEnter(const RayHit& hit) {
 		t.rotation = p2.rotation.GetQuaterion() * rot.GetQuaterion() * glm::inverse(p1.rotation.GetQuaterion()) * t.rotation.GetQuaterion();
 		player.SetCameraTransfrom(t);
 		currentPortalSpace = p->dest->GetPortalSpace();
+		prTree.ConstructTree(currentPortalSpace->GetPortals());
 	}
 }
 
@@ -1130,7 +1073,7 @@ void PrerenderPortal(const Portal& p, GLuint& outCm) {
 	t = p.dest->transform;
 	wtvs.push_back(t.GetInverseTransformMatrix());
 
-	
+
 	// draw the scene for each face
 	//glCullFace(GL_BACK);
 	//glDisable(GL_CULL_FACE);
@@ -1171,7 +1114,7 @@ void CalcVisibleDirLights() {
 				d.lsPortalEq = glm::vec4(0.0f);
 				sdl->perPortal.insert({ nullptr, d });
 				PortalSpace::shadowmappedLights.insert(sdl);
-				ps->drawableDirLights.insert(new DrawableDirLight({sdl, nullptr}));
+				ps->drawableDirLights.insert(new DrawableDirLight({ sdl, nullptr }));
 			}
 		}
 	}
@@ -1224,10 +1167,10 @@ void CalcVisibleDirLights() {
 					float dot2 = glm::dot(pe2, pos2);
 					float dot3 = glm::dot(pe3, pos3);
 				}
-			
+
 
 				ps->drawableDirLights.insert(new DrawableDirLight({ l, p->dest }));
-			}	
+			}
 			if (ps->drawableDirLights.size() >= Lighting::MAX_DIR_LIGHT_COUNT)
 				break;
 		}

@@ -10,8 +10,10 @@ layout (std140) uniform GlobalMatrices
 
 uniform mat4 objectToWorld;
 
-
-uniform vec4 portalPlaneEq;
+layout (std140) uniform PortalBlock 
+{
+	vec4 portalPlaneEq;
+};
 
 out float gl_ClipDistance[1];
 

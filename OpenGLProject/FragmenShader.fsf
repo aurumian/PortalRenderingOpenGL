@@ -94,9 +94,12 @@ float CalculateDirShadow(DirLight light, vec4 fragPosLightSpace, vec3 normal, ve
 
 	uint stencil = texture(smStencil[light.smIndex], projCoords.xy).r;
 	vec4 pos = light.lightSpaceMatrix * vec4(-2.79703f, 0.170776f, -0.793854f, 1.0f);
-	shadow = stencil == light.smStencilRef ? 
-			(dot(light.lsPortalEq, fragPosLightSpace) >= 0.0 ? shadow : 1.0) 
-			: 1.0;
+	//shadow = stencil == light.smStencilRef ? 
+	//		(dot(light.lsPortalEq, fragPosLightSpace) >= 0.0 ? shadow : 1.0) 
+	//		: 1.0;
+	// same as the commented out above code but branchless
+	float isInShadow = float(stencil == light.smStencilRef  &&  (dot(light.lsPortalEq, fragPosLightSpace)) >= 0.0);
+	shadow = shadow * isInShadow + 1.0 - isInShadow;
 
 	return shadow;
 }

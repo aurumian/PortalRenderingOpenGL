@@ -8,13 +8,17 @@ layout (location = 2) in vec2 TexCoord;
 
 layout (std140) uniform GlobalMatrices
 {
-	uniform mat4 worldToView;
-	uniform mat4 projection;
+	mat4 worldToView;
+	mat4 projection;
 };
 
 uniform mat4 objectToWorld;
 
-uniform vec4 portalPlaneEq;
+layout (std140) uniform PortalBlock 
+{
+	vec4 portalPlaneEq;
+};
+
 
 uniform mat3 normalMatrix;
 
@@ -61,15 +65,12 @@ void main(){
 	vs_out.Normal = normalMatrix * aNormal;
 	vs_out.FragPos = (worldToView * worldPos).xyz;
 	vs_out.texCoord = TexCoord;
-	//vs_out.FragPosLightSpace = lightSpaceMatrix * objectToWorld * vec4(aPos,  1.0f);
+
 	for (int i = 0; i < numDirLights; ++i)
 	{
 		vs_out.fragPosLightSpace[i] = dirLights[i].lightSpaceMatrix * worldPos;
 	}
-	//vs_out.FragPosLightSpace = dirLights[0].lightSpaceMatrix * objectToWorld * vec4(aPos,  1.0f);
 
-	//vs_out.FragPosLightSpace2 = lightSpaceMatrix2 * objectToWorld * vec4(aPos,  1.0f);
-	//vs_out.FragPosLightSpace2 = dirLights[2].lightSpaceMatrix * objectToWorld * vec4(aPos,  1.0f);
 	gl_Position = projection * worldToView * worldPos;
 	
 }

@@ -34,13 +34,16 @@ void PortalSpace::RemoveActor(Actor* actor)
 		renderers.erase(mr);
 }
 
-void PortalSpace::Draw(const Cam& cam, Material* matOverride)
+void PortalSpace::Draw(const Cam* cam, Material* matOverride)
 {
-	SetGlobalProjectionMatrix(cam.projection);
-	SetGlobalViewMatrix(cam.worldToView);
+	if (cam != nullptr)
+	{
+		SetGlobalProjectionMatrix(cam->projection);
+		SetGlobalViewMatrix(cam->worldToView);
+	}
 
 	// set global light data here
-	lighting->AddLights(this, cam);
+	lighting->AddLights(this, *cam);
 	lighting->SendToGPU();
 
 	for (MeshRenderer* mr : renderers)
@@ -55,14 +58,14 @@ void PortalSpace::Draw(const Cam& cam, Material* matOverride)
 			
 
 			//temp
-			sp->setVec3("pointLight.position", cam.worldToView * glm::vec4(bulb.transform.position, 1.0f));
+			sp->setVec3("pointLight.position", cam->worldToView * glm::vec4(bulb.transform.position, 1.0f));
 			sp->setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
-			sp->setVec3("pointLight.position", cam.worldToView * glm::vec4(bulb.transform.position, 1.0f));
+			sp->setVec3("pointLight.position", cam->worldToView * glm::vec4(bulb.transform.position, 1.0f));
 
 
 			// set normal matrix
 			if (matOverride == nullptr) {
-				glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(cam.worldToView * mr->GetTransform().GetTransformMatrix())));
+				glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(cam->worldToView * mr->GetTransform().GetTransformMatrix())));
 				sp->SetMat3("normalMatrix", normalMatrix);
 			}
 		}
@@ -81,7 +84,7 @@ void PortalSpace::AddPortal(Portal* p)
 	p->portalSpace = this;
 }
 
-const std::unordered_set<Portal*>& PortalSpace::GetPortals()
+PortalSpace::PortalContainerConstRef PortalSpace::GetPortals()
 {
 	return portals;
 }

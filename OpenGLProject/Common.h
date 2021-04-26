@@ -36,9 +36,15 @@ extern glm::mat4 portallingMat;
 
 void CreateGlobalMatricesBuffer();
 
+void CreatePortalBlockUbo();
+
 void SetGlobalViewMatrix(const glm::mat4& view);
 
 void SetGlobalProjectionMatrix(const glm::mat4& projection);
+
+void SetGlobalViewspacePortalEquation(const glm::vec4& eq);
+
+UniformBufferObject* GetPortalBlockUbo();
 
 // if matOverride is not nullptr DrawScene doesn't change shader that is used
 // nor does it set any shader parameters except objectToWorld and cam matrices

@@ -86,8 +86,7 @@ void Shadows::RenderShadowmap(PortalShadowedDirLight& light)
 	// render the scene without portals
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
-	//DrawScene(cam, smMat);
-	ps->Draw(cam, smMat);
+	ps->Draw(&cam, smMat);
 	glDisable(GL_CULL_FACE);
 
 	glEnable(GL_STENCIL_TEST);
