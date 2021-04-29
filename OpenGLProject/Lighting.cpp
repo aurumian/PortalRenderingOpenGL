@@ -2,6 +2,7 @@
 #include "UniformBufferObject.h"
 #include "PortalSpace.h"
 #include "Shadows.h"
+#include "Camera.h"
 
 #include <unordered_map>
 #include <string>
@@ -17,7 +18,7 @@ Lighting::~Lighting() {
 	delete ubo;
 }
 
-void Lighting::AddLights(const PortalSpace* ps, const Cam& cam)
+void Lighting::AddLights(const PortalSpace* ps, const Camera& cam)
 {
 	unordered_map<PortalShadowedDirLight*, uint32_t> uniqueShadowedLights;
 	for (const DrawableDirLight* ddlp : ps->drawableDirLights)
@@ -30,7 +31,7 @@ void Lighting::AddLights(const PortalSpace* ps, const Cam& cam)
 		DirLight* light = ddl.psdl->light;
 		PerPortalDirLightData& data = ddl.psdl->perPortal[ddl.portal];
 		GpuDirLight& l = dirLights.lights[dirLights.numDirLights++];
-		l.direction = glm::mat3(cam.worldToView) * data.direction;
+		l.direction = glm::mat3(cam.GetWorldToViewMatrix()) * data.direction;
 		if (ddl.portal == nullptr)
 			l.ambientStrength = light->ambientStrenght;
 		else
@@ -50,7 +51,7 @@ void Lighting::AddLights(const PortalSpace* ps, const Cam& cam)
 		// a shadomap
 		if (uniqueShadowedLights.find(ddl.psdl) == uniqueShadowedLights.end())
 		{
-			uniqueShadowedLights.insert({ ddl.psdl, numShadowmaps });
+			uniqueShadowedLights.insert({ ddl.psdl, (uint32_t)numShadowmaps });
 			shadowmaps[numShadowmaps++] = ddl.psdl->shadowmap;
 			
 		}
@@ -82,8 +83,8 @@ void Lighting::SetShadowmaps(Shader* shader)
 	shader->Use();
 	for (size_t i = 0; i < numShadowmaps; ++i)
 	{
-		int depthViewIndex = i * 2;
-		int stencilViewIndex = i * 2 + 1;
+		int depthViewIndex = (int)i * 2;
+		int stencilViewIndex = (int)i * 2 + 1;
 		glActiveTexture(GL_TEXTURE0 + depthViewIndex);
 		glBindTexture(GL_TEXTURE_2D, shadowmaps[i]->depth_view);
 		glActiveTexture(GL_TEXTURE0 + stencilViewIndex);
@@ -102,12 +103,11 @@ glm::mat4 DirLight::GetLightSpaceMatrix() {
 	return lp * lv;
 }
 
-Cam GetLightCam(const DirLight& light) {
-	Cam cam;
-	cam.worldToView = light.transform.GetInverseTransformMatrix();
-	cam.projection = glm::ortho(-light.extent, light.extent, -light.extent, light.extent,
+Camera GetLightCam(const DirLight& light) {
+	Camera cam;
+	cam.SetProjectionMatrixOrtho(-light.extent, light.extent, -light.extent, light.extent,
 		light.nearPlane, light.farPlane);
-	cam.isOrtho = true;
+	cam.SetWorldToViewMatrix(light.transform.GetInverseTransformMatrix());
 	return cam;
 }
 

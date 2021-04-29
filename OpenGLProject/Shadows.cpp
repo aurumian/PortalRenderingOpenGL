@@ -8,6 +8,7 @@
 #include "Common.h"
 #include "Material.h"
 #include "PortalSpace.h"
+#include "Camera.h"
 
 Material* smMat;
 Material* clearDepthMat;
@@ -53,9 +54,9 @@ void Shadows::RenderShadowmap(PortalShadowedDirLight& light)
 	glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 
-	Cam cam = GetLightCam(*light.light);
-	SetGlobalProjectionMatrix(cam.projection);
-	SetGlobalViewMatrix(cam.worldToView);
+	Camera cam = GetLightCam(*light.light);
+	SetGlobalProjectionMatrix(cam.GetProjectionMatrix());
+	SetGlobalViewMatrix(cam.GetWorldToViewMatrix());
 
 	unordered_map<const Portal*, glm::mat4> wtvs;
 
@@ -72,7 +73,7 @@ void Shadows::RenderShadowmap(PortalShadowedDirLight& light)
 		else
 			// so it would still leave a shadow
 			p->stencilVal = 0;
-		wtvs[p] = cam.worldToView;
+		wtvs[p] = cam.GetWorldToViewMatrix();
 	}
 
 	{
@@ -120,7 +121,7 @@ void Shadows::RenderShadowmap(PortalShadowedDirLight& light)
 		Portal* p = pa.first;
 		if (p == nullptr)
 			continue;
-		cam.worldToView = wtvs[p];
+		cam.SetWorldToViewMatrix(wtvs[p]);
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_FRONT);
 		wtvs[p] = DrawPortalContents(*p, cam, smMat);
@@ -161,86 +162,4 @@ void Shadows::ConfigureFBOAndTextureForShadowmap(GLuint& fbo, GLuint& tex, GLuin
 	glReadBuffer(GL_NONE);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-}
-
-// when i render a shadowmap for a light i need to:
-// get a shadowmap texture from a pool
-// assign that texture (both depth_view and stencil_view) to drawable light
-// calculate and assign per portal stencil values, light directions and lightspace matrices
-// 
-//
-
-/*
-* Renders a shadowmap for a light taking portals into account
-*
-*/
-void RenderShadowmap(GLuint fbo, DirLight& light, const list<Portal*>& portalsToRender) {
-	glViewport(0, 0, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
-	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-	glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-
-	Cam cam = GetLightCam(light);
-	SetGlobalProjectionMatrix(cam.projection);
-	SetGlobalViewMatrix(cam.worldToView);
-
-	unordered_map<const Portal*, glm::mat4> wtvs;
-
-
-	// set prevStencil  values to zero for each portal
-	for (Portal* p : portalsToRender) {
-		p->prevStencil = 0;
-
-		wtvs[p] = cam.worldToView;
-	}
-
-	{
-		// render portal planes first to not render the pixels that will be covered by them anyway ?
-		// render the scene first time
-		// redner portal planes again to apply stencil values and clear depth
-		// for each portal draw the scene again to update the depth map
-	}
-
-
-	// render the scene without portals
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_FRONT);
-	DrawScene(cam, smMat);
-	glDisable(GL_CULL_FACE);
-
-	glEnable(GL_STENCIL_TEST);
-	// redner portal planes to apply stencil values
-	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-	for (const Portal* p : portalsToRender) {
-		glStencilFunc(GL_ALWAYS, p->stencilVal, 0xFF);
-
-		MeshRenderer* r = p->GetComponent<MeshRenderer>();
-		r->Draw(smMat);
-	}
-
-	// draw portal planes again to clear depth where the portals are
-	// but only where the stencil is equal to the portal's stencil
-	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-	glDepthFunc(GL_ALWAYS);
-	for (const Portal* p : portalsToRender) {
-		glStencilFunc(GL_EQUAL, p->stencilVal, 0xFF);
-
-		MeshRenderer* r = p->GetComponent<MeshRenderer>();
-		// use shader that sets depth to 1.0 (clears it)
-		r->Draw(clearDepthMat);
-	}
-	glDepthFunc(GL_LESS);
-
-	// for each portal draw the scene again to update the depth map
-	for (const Portal* p : portalsToRender) {
-		cam.worldToView = wtvs[p];
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_FRONT);
-		wtvs[p] = DrawPortalContents(*p, cam, smMat);
-		glDisable(GL_CULL_FACE);
-	}
-
-	glDisable(GL_STENCIL_TEST);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glViewport(0, 0, screenWidth, screenHeight);
 }

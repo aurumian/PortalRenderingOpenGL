@@ -46,12 +46,12 @@ glm::vec3 Rotator::GetForwardVector() const
 
 glm::vec3 Rotator::GetUpVector() const
 {
-	glm::vec3 euler = GetEulerRadians();
+	/*glm::vec3 euler = GetEulerRadians();
 	euler.x += glm::radians(90.0f);
 	glm::vec3 up;
 	up.x = sin(euler.x) * sin(euler.z);
 	up.y = sin(euler.x) * cos(euler.z);
-	up.z = cos(euler.x);
+	up.z = cos(euler.x);*/
 	return quat * glm::vec3(0.0f, 1.0f, 0.0f);
 }
 

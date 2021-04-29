@@ -15,6 +15,7 @@ class DirLight;
 struct PerPortalDirLightData;
 class PortalShadowedDirLight;
 class ShadowmapTexture;
+class Camera;
 
 // mapping of the GPU side DirLight struct onto CPU
 class GpuDirLight {
@@ -47,7 +48,7 @@ public:
 
 	~Lighting();
 
-	void AddLights(const PortalSpace* ps, const Cam& cam);
+	void AddLights(const PortalSpace* ps, const Camera& cam);
 
 	void ClearLights();
 
@@ -76,7 +77,7 @@ public:
 	GLuint shadowmap;
 
 	// shadow rendering parameters
-	float nearPlane = 1.0f;
+	float nearPlane = 0.0f;
 	float farPlane = 20.0f;
 	// height and width of the rendering frustum
 	float extent = 20.0f;
@@ -84,7 +85,7 @@ public:
 	glm::mat4 GetLightSpaceMatrix();
 };
 
-Cam GetLightCam(const DirLight& light);
+Camera GetLightCam(const DirLight& light);
 
 
 struct PerPortalDirLightData {

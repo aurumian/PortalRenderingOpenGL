@@ -20,6 +20,6 @@ public:
 	}
 
 private:
-	Actor* owner;
+	Actor* owner = nullptr;
 	friend class Actor;
 };

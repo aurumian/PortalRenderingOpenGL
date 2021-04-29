@@ -18,12 +18,12 @@ class PortalSpace;
 
 // most of this file's contents is temporary stuff
 
-struct Cam {
-	glm::mat4 worldToView;
-	glm::mat4 projection;
-	float nearPlane = 0.0f;
-	bool isOrtho = false;
-};
+//struct Cam {
+//	glm::mat4 worldToView;
+//	glm::mat4 projection;
+//	float nearPlane = 0.0f;
+//	bool isOrtho = false;
+//};
 
 extern UniformBufferObject* globalMatrices;
 
@@ -48,7 +48,7 @@ UniformBufferObject* GetPortalBlockUbo();
 
 // if matOverride is not nullptr DrawScene doesn't change shader that is used
 // nor does it set any shader parameters except objectToWorld and cam matrices
-void DrawScene(const Cam& cam, Material* matOverride = nullptr);
+// void DrawScene(const Cam& cam, Material* matOverride = nullptr);
 
 
 extern int screenWidth, screenHeight;

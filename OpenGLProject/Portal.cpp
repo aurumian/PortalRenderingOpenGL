@@ -4,9 +4,15 @@
 #include "MeshRenderer.h"
 #include "Material.h"
 #include "PortalSpace.h"
+#include "Camera.h"
 
 
-// need to update to support ortho projection matrices - the location is different from the view
+
+bool Portal::IsVisible(const Camera& cam)
+{
+	return Physics::CheckOverlap(cam.GetPyramid(), plane);
+}
+
 glm::vec4 Portal::GetViewspacePortalEquation(glm::mat4 worldToView, float isOrtho) const
 {
 	glm::vec3 normal = glm::transpose(glm::inverse(glm::mat3(worldToView * transform.GetTransformMatrix()))) * glm::vec3(0.0f, 0.0f, 1.0f);
@@ -19,107 +25,15 @@ glm::vec4 Portal::GetViewspacePortalEquation(glm::mat4 worldToView, float isOrth
 	}
 	else
 	{
-		// make sure (pos, 1.0f) dot equation < 0 when the point is between the camera and the portal plane
-		if (glm::dot(normal, q) < 0.0f) // == dot((0.0, 0.0, 0.0, 1.0), (normal, -dot(normal,q)) > 0.0f
-			normal = -normal;
+		// make sure (pos, 1.0f) dot equation < 0.0 when the point is between the camera and the portal plane
+		if (glm::dot(normal, q) < 0.0f) // == dot((0.0, 0.0, 0.0, 1.0), (normal, -dot(normal,q)) >= 0.0f
+			return -glm::vec4(normal, -glm::dot(normal, q));
 	}
 	return glm::vec4(normal, -glm::dot(normal, q));
 	// this equation can be used to check a point position around this portal:
 	// if (point.pos, 1.0f) dot equation < 0 when the point is between the camera and the portal plane
-	// else it's between the portal plane and the camera's far plane
+	// else it's behind the portal plane
 }
-
-// for now tested only for orthogonal projection matrix
-glm::vec4 Portal::GetNdcSpacePortalEquation(glm::mat4 worldToClip) const
-{
-	glm::vec3 normal = glm::transpose(glm::inverse(glm::mat3(worldToClip * transform.GetTransformMatrix()))) * glm::vec3(0.0f, 0.0f, 1.0f);
-	glm::vec4 pos = worldToClip * glm::vec4(transform.position, 1.0f);
-	glm::vec3 q = glm::vec3(pos) / pos.w;
-	// make sure (pos, 1.0f) dot equation < 0.0 when the point is between the camera and the portal plane
-	if (-normal.z - glm::dot(normal, q) > 0.0f) // == dot((0.0f, 0.0f, -1.0f, 1.0f), (normal, -dot(normal,q)) > 0.0f
-		normal = -normal;
-	return glm::vec4(normal, -glm::dot(normal, q));
-	// this equation can be used to check a point position around this portal:
-	// if (point.pos, 1.0f) dot equation < 0 when the point is between the camera' near plane and the portal plane
-	// else it's between the portal plane and the camera's far plane
-}
-
-//PortalRenderTree Portal::GetPortalRenderTree(PortalSpace::PortalContainerConstRef portals) {
-//	
-//	size_t maxDepth = GetMaxRenderDepth(portals);
-//	/* use depth first search to construct the tree
-//	*/
-//
-//	PortalRenderTree tree(portals);
-//	PortalRenderTreeNode* node = new PortalRenderTreeNode();
-//	tree.root = node;
-//
-//	for (Portal* p : portals) {
-//		PortalRenderTreeNode* n = new PortalRenderTreeNode();
-//		n->parent = tree.root;
-//		n->portal = p;
-//		n->portallingMat = p->GetPortallingMat();
-//		if (node == tree.root) {
-//			node->firstChild = n;
-//			node = n;
-//		}
-//		else {
-//			node->right = n;
-//			node = n;
-//		}
-//	}
-//	
-//	size_t depth = 1;
-//	stencil_t stencil = 2;
-//	stencil_t numPortals = portals.size();
-//	node = tree.root->firstChild;
-//	node->stencil = 1;
-//	while (node != tree.root) {
-//		PortalRenderTreeNode* nod = node;
-//		if (depth < maxDepth)
-//			//for (Portal* p : node->portal->cbsPortals) {
-//			for (Portal* p : node->portal->dest->GetPortalSpace()->GetPortals()) {
-//				if (p == node->portal->dest) // for cases when portal leads into the same space
-//					continue;
-//				if (numPortals > maxNumPortalRenderings)
-//					break;
-//				PortalRenderTreeNode* n = new PortalRenderTreeNode();
-//				n->parent = node;
-//				n->portal = p;
-//				n->portallingMat = node->portallingMat * p->GetPortallingMat();
-//				if (nod == node) {
-//					nod->firstChild = n;
-//					nod = n;
-//				}
-//				else {
-//					nod->right = n;
-//					nod = n;
-//				}
-//				numPortals++;
-//			}
-//		if (node->firstChild != nullptr) {
-//			node = node->firstChild;
-//			depth++;
-//			node->stencil = stencil++;
-//		}
-//		else if (node->right != nullptr) {
-//			node = node->right;
-//			node->stencil = stencil++;
-//		}
-//		else {
-//			while (node->right == nullptr && node != tree.root) {
-//				node = node->parent;
-//				depth--;
-//			}
-//			if (node != tree.root) {
-//				node = node->right;
-//				node->stencil = stencil++;
-//			}
-//		}
-//	}
-//
-//	return tree;
-//}
 
 /*
 	uses breadth first search to determine max rendering depth
@@ -179,20 +93,25 @@ PortalRenderTree::PortalRenderTree()
 	numNodes = 0;
 }
 
-PortalRenderTree::PortalRenderTree(PortalSpace::PortalContainerConstRef portals)
+PortalRenderTree::PortalRenderTree(PortalSpace::PortalContainerConstRef portals, const Camera& cam)
 {
-	ConstructTree(portals);
+	ConstructTree(portals, cam);
 }
 
-void PortalRenderTree::ConstructTree(PortalSpace::PortalContainerConstRef portals)
+void PortalRenderTree::ConstructTree(PortalSpace::PortalContainerConstRef portals, const Camera& cam)
 {
 	// use breadth first search to construct the tree
 	{
 		numNodes = 0;
 
 		list<pair<PortalRenderTreeNode*, Portal*>> pl;
+		// TODO: add only portals that can be seen through the camera
 		for (auto* p : portals)
-			pl.push_back({ nullptr, p });
+		{
+			if (p->IsVisible(cam))
+				pl.push_back({ nullptr, p });
+		}
+			
 
 		size_t depth = 1;
 		size_t depthIncrAfter = pl.size();
@@ -229,6 +148,12 @@ void PortalRenderTree::ConstructTree(PortalSpace::PortalContainerConstRef portal
 			for (Portal* po : p.second->dest->portalSpace->GetPortals()) {
 				if (po == p.second->dest)
 					continue;
+				// TODO: add only portals that can be seen through the camera
+				Camera c = cam;
+				c.SetWorldToViewMatrix(c.GetWorldToViewMatrix() * node->GetPortallingMat());
+				if (!po->IsVisible(c))
+					continue;
+
 				nextDepthIncr++;
 				pl.push_back({ node, po });
 			}
@@ -360,14 +285,14 @@ void DrawPortalPlane(const PortalRenderTreeNode& p, bool setStencil) {
 	r->Draw();
 }
 
-Cam BeginDrawInsidePortal(const PortalRenderTreeNode& p, const Cam& cam)
+Camera BeginDrawInsidePortal(const PortalRenderTreeNode& p, const Camera& cam)
 {
-	Cam c = cam;
+	Camera c = cam;
 	glStencilFunc(GL_EQUAL, p.GetStencil(), 0xFF);
 	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-	c.worldToView = cam.worldToView * p.GetPortallingMat();
-	SetGlobalViewMatrix(c.worldToView);
-	SetGlobalViewspacePortalEquation(p.GetPortal()->dest->GetViewspacePortalEquation(c.worldToView, c.isOrtho));
+	c.SetWorldToViewMatrix(cam.GetWorldToViewMatrix() * p.GetPortallingMat());
+	SetGlobalViewMatrix(c.GetWorldToViewMatrix());
+	SetGlobalViewspacePortalEquation(p.GetPortal()->dest->GetViewspacePortalEquation(c.GetWorldToViewMatrix(), c.IsOrtho()));
 	glEnable(GL_CLIP_DISTANCE0);
 	return c;
 }
@@ -377,27 +302,27 @@ void EndDrawInsidePortal()
 	glDisable(GL_CLIP_DISTANCE0);
 }
 
-void DrawPortalContents(const PortalRenderTreeNode& p, const Cam& cam, Material* matOverride) 
+void DrawPortalContents(const PortalRenderTreeNode& p, const Camera& cam, Material* matOverride) 
 {
-	Cam c = BeginDrawInsidePortal(p, cam);
+	Camera c = BeginDrawInsidePortal(p, cam);
 	p.GetPortal()->dest->GetPortalSpace()->Draw(&c, matOverride);
 	EndDrawInsidePortal();
 }
 
-glm::mat4 DrawPortalContents(const Portal& p, const Cam& cam, Material* matOverride) {
+glm::mat4 DrawPortalContents(const Portal& p, const Camera& cam, Material* matOverride) {
 
 	// update world to view matrix 
-	glm::mat4 newWTV = cam.worldToView * p.GetPortallingMat();
+	glm::mat4 newWTV = cam.GetWorldToViewMatrix() * p.GetPortallingMat();
 
-	Cam c = cam;
-	c.worldToView = newWTV;
+	Camera c = cam;
+	c.SetWorldToViewMatrix(newWTV);
 
 	// draw the scene from a new perspective
 	{
 		glStencilFunc(GL_EQUAL, p.stencilVal, 0xFF);
 		glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-		SetGlobalViewspacePortalEquation(p.dest->GetViewspacePortalEquation(newWTV, c.isOrtho));
+		SetGlobalViewspacePortalEquation(p.dest->GetViewspacePortalEquation(newWTV, c.IsOrtho()));
 
 		glEnable(GL_CLIP_DISTANCE0);
 		p.dest->GetPortalSpace()->Draw(&c, matOverride);

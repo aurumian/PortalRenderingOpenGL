@@ -112,6 +112,9 @@ MeshRenderer* sceneRenderer;
 MeshRenderer* scene2Renderer;
 MeshRenderer* fsqRenderer;
 
+
+//
+glm::vec2 portalDims = glm::vec2(0.55f, 1.2f);
 // Portals
 Portal p1;
 Portal p2;
@@ -340,7 +343,7 @@ int main() {
 	Mesh floor = Mesh(verts, inds);
 
 	// create portal plane mesh
-	glm::vec2 portalDims = glm::vec2(0.55f, 1.2f);
+	
 	//glm::vec2 portalDims = glm::vec2(0.5f, 0.5f);
 	verts.clear();
 	verts.push_back({ glm::vec3(portalDims.x, -portalDims.y, 0.0f), glm::vec3(0,0,-1), glm::vec2(1, 0) });
@@ -379,7 +382,7 @@ int main() {
 
 	// create bulb shader program
 	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\BulbFragmentShader.fsf");
-	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\VertexShader.vs");
+	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\BulbVertexShader.vs");
 	Shader* bulbSP = comp.Compile();
 	bulbSP->BindUBO(globalMatrices);
 	bulbSP->BindUBO(GetPortalBlockUbo());
@@ -495,6 +498,7 @@ int main() {
 			col->isTrigger = true;
 			p1.AddComponent(col);
 			Physics::Instance()->AddCollider(col);
+			p1.plane = RectanglePlane(t.position, t.rotation.GetForwardVector(), portalDims);
 		}
 
 		// portal 2
@@ -510,6 +514,7 @@ int main() {
 			col->isTrigger = true;
 			p2.AddComponent(col);
 			Physics::Instance()->AddCollider(col);
+			p2.plane = RectanglePlane(t.position, t.rotation.GetForwardVector(), portalDims);
 		}
 
 		// portal 3
@@ -527,6 +532,7 @@ int main() {
 			col->isTrigger = true;
 			p3.AddComponent(col);
 			Physics::Instance()->AddCollider(col);
+			p3.plane = RectanglePlane(t.position, t.rotation.GetForwardVector(), portalDims);
 		}
 
 		// portal 4
@@ -544,6 +550,7 @@ int main() {
 			col->isTrigger = true;
 			p4.AddComponent(col);
 			Physics::Instance()->AddCollider(col);
+			p4.plane = RectanglePlane(t.position, t.rotation.GetForwardVector(), portalDims);
 		}
 
 		// portal 5
@@ -564,6 +571,7 @@ int main() {
 			col->isTrigger = true;
 			p5.AddComponent(col);
 			Physics::Instance()->AddCollider(col);
+			p5.plane = RectanglePlane(t.position, t.rotation.GetForwardVector(), portalDims);
 		}
 
 		// portal 6
@@ -579,6 +587,7 @@ int main() {
 			col->isTrigger = true;
 			p6.AddComponent(col);
 			Physics::Instance()->AddCollider(col);
+			p6.plane = RectanglePlane(t.position, t.rotation.GetForwardVector(), portalDims);
 		}
 
 		// portal 7
@@ -596,6 +605,7 @@ int main() {
 			col->isTrigger = true;
 			p7.AddComponent(col);
 			Physics::Instance()->AddCollider(col);
+			p7.plane = RectanglePlane(t.position, t.rotation.GetForwardVector(), portalDims);
 		}
 
 		// portal 8
@@ -611,6 +621,7 @@ int main() {
 			col->isTrigger = true;
 			p8.AddComponent(col);
 			Physics::Instance()->AddCollider(col);
+			p8.plane = RectanglePlane(t.position, t.rotation.GetForwardVector(), portalDims);
 		}
 	}
 
@@ -645,17 +656,15 @@ int main() {
 
 	// set initial camera position
 	{
-		Transform t = camera.GetTransform();
-		t.position = glm::vec3(1.0f, 0.25, -2.2f - 0.6f);
+		Transform t;// = camera.GetTransform();
+		t.position = glm::vec3(0.0f, 1.25, -2.1f);
+		t.rotation = glm::vec3(0.0f, 90.0f, 0.0f);
 		camera.SetTransform(t);
 	}
 
 	// 
 	player.onTriggerHitCallback = OnPlayerTriggerEnter;
 
-	// prepare a PortalRenderTree for easier portal rendering
-	// it also optimizes calculations since it precomputes portalling matricies
-	prTree.ConstructTree(currentPortalSpace->GetPortals());
 
 	// configure dir light
 	{
@@ -730,9 +739,7 @@ int main() {
 					shadows->RenderShadowmap(*(*dps->shadowmappedLights.begin()));
 			}
 
-			Cam cam;
-			cam.worldToView = camera.GetWorldToViewMatrix();
-			cam.projection = camera.GetProjectionMatrix();
+			Camera cam = camera;
 			renderDepth = 0;
 
 
@@ -772,8 +779,8 @@ int main() {
 				s->setVec3("psCamPos", psCamPos);
 				// do we need this here?
 				{
-					SetGlobalViewMatrix(cam.worldToView);
-					SetGlobalProjectionMatrix(cam.projection);
+					SetGlobalViewMatrix(cam.GetWorldToViewMatrix());
+					SetGlobalProjectionMatrix(cam.GetProjectionMatrix());
 				}
 				//s->setMat4("objectToWorld", t.GetTransformMatrix());
 				s->setMat4("portalDimsScaler", scale);
@@ -818,7 +825,7 @@ int main() {
 				//
 
 				// compute the portal rendering tree
-				//prTree = Portal::GetPortalRenderTree(currentPortalSpace->GetPortals());
+				prTree.ConstructTree(currentPortalSpace->GetPortals(), camera);
 
 				// clear stencil
 				glClear(GL_STENCIL_BUFFER_BIT);
@@ -834,11 +841,13 @@ int main() {
 					if (depth == 1)
 					{
 						{
+							glEnable(GL_DEPTH_CLAMP);
 							while (it != prTree.End() && (*it)->GetDepth() == depth)
 							{
 								DrawPortalPlane(*(*it), true);
 								++it;
 							}
+							glDisable(GL_DEPTH_CLAMP);
 						}
 					}
 					else
@@ -912,87 +921,6 @@ int main() {
 	return 0;
 }
 
-
-void DrawScene(const Cam& cam, Material* matOverride) {
-	Shader* sp = nullptr;
-
-	SetGlobalProjectionMatrix(cam.projection);
-	SetGlobalViewMatrix(cam.worldToView);
-
-	// draw bulb
-	if (matOverride == nullptr) {
-		sp = bulb.GetComponent<MeshRenderer>()->GetMaterial()->GetShader();
-		sp->Use();
-		sp->setVec3("lightColor", lightColor);
-		sp->setMat4("lightSpaceMatrix", dirLight.GetLightSpaceMatrix());
-	}
-	bulb.GetComponent<MeshRenderer>()->Draw(matOverride);
-
-	// draw with main shader or override shader:
-	{
-		// draw monkey
-		if (matOverride == nullptr) {
-			sp = monkeyRenderer->GetMaterial()->GetShader();
-			sp->Use();
-			// temp
-			sp->setMat4("lightSpaceMatrix", dirLight.GetLightSpaceMatrix() * portallingMat);
-			sp->setVec3("lightColor", lightColor);
-
-
-			// temp
-			if (renderDepth == 1)
-				sp->setMat4("lightSpaceMatrix2", dirLight.GetLightSpaceMatrix());
-
-
-			sp->setVec3("dirLight2.color", lightColor * 0.5f + 0.5f);
-			sp->setVec3("dirLight2.direction", glm::mat3(cam.worldToView) * dirLight.transform.rotation.GetForwardVector());
-			sp->setFloat("dirLight2.ambientStrength", 0.0f);
-
-			sp->setVec3("pointLight.position", cam.worldToView * glm::vec4(bulb.transform.position, 1.0f));
-			sp->setFloat("material.shiness", 32.0f);
-			//sp->setInt("shadowMap", 2);
-			//sp->setInt("smStencil", 3);
-
-			// temp 
-			PortalShadowedDirLight* l = GetDefaultPortalSpace()->shadowmappedLights.begin().operator*();
-			glActiveTexture(GL_TEXTURE2);
-			glBindTexture(GL_TEXTURE_2D, l->shadowmap->depth_view);
-			glActiveTexture(GL_TEXTURE3);
-			glBindTexture(GL_TEXTURE_2D, l->shadowmap->stencil_view);
-			glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_STENCIL_TEXTURE_MODE, GL_STENCIL_INDEX);
-			glActiveTexture(GL_TEXTURE0);
-		}
-		monkeyRenderer->Draw(matOverride);
-
-		// draw portal scenes
-		if (matOverride == nullptr) {
-			glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(cam.worldToView * ps1.transform.GetTransformMatrix())));
-			sp->SetMat3("normalMatrix", normalMatrix);
-		}
-		sceneRenderer->Draw(matOverride);
-
-		// temp
-		if (matOverride == nullptr) {
-			if (renderDepth == 0) {
-				sp->setFloat("dirLight.intensity", 0.0f);
-				sp->setFloat("dirLight2.intensity", 2.0f);
-			}
-			else {
-				sp->setFloat("dirLight.intensity", 2.0f);
-				sp->setFloat("dirLight2.intensity", 0.0f);
-			}
-			sp->setFloat("dirLight.ambientStrength", 0.0f);
-			sp->setFloat("dirLight2.ambientStrength", 0.0f);
-
-		}
-		if (matOverride == nullptr) {
-			glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(cam.worldToView * ps2.transform.GetTransformMatrix())));
-			sp->SetMat3("normalMatrix", normalMatrix);
-		}
-		scene2Renderer->Draw(matOverride);
-	}
-}
-
 void OnPlayerTriggerEnter(const RayHit& hit) {
 
 	// a matrix and a quaternion that are needed for translation of position and rotation
@@ -1016,7 +944,6 @@ void OnPlayerTriggerEnter(const RayHit& hit) {
 		t.rotation = p2.rotation.GetQuaterion() * rot.GetQuaterion() * glm::inverse(p1.rotation.GetQuaterion()) * t.rotation.GetQuaterion();
 		player.SetCameraTransfrom(t);
 		currentPortalSpace = p->dest->GetPortalSpace();
-		prTree.ConstructTree(currentPortalSpace->GetPortals());
 	}
 }
 
@@ -1079,15 +1006,15 @@ void PrerenderPortal(const Portal& p, GLuint& outCm) {
 	//glDisable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
 	glViewport(0, 0, PORTAL_CUBE_MAP_SIZE, PORTAL_CUBE_MAP_SIZE);
-	Cam cam;
-	cam.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.01f, 100.0f);
+	Camera cam;
+	cam.SetProjectionMatrixPerspective(glm::radians(90.0f), 1.0f, 0.01f, 100.0f);
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 	for (GLsizei i = 0; i < 6; ++i) {
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
 			GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, outCm, 0);
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-		cam.worldToView = wtvs[i];
-		DrawScene(cam);
+		cam.SetWorldToViewMatrix(wtvs[i]);
+		currentPortalSpace->Draw(&cam);
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -1142,32 +1069,9 @@ void CalcVisibleDirLights() {
 				glm::mat4 pmat = p->dest->GetPortallingMat();
 				d.direction = glm::mat3(pmat) * l->light->transform.rotation.GetForwardVector();
 				d.lightSpaceMatrix = l->light->GetLightSpaceMatrix() * pmat;
-				d.stencilVal = l->perPortal.size();
+				d.stencilVal = (uint32_t)l->perPortal.size();
 				d.lsPortalEq = p->GetViewspacePortalEquation(d.lightSpaceMatrix, true);
 				l->perPortal.insert({ p->dest, d });
-
-				//temp
-				// this helped me to properly setup lightspace portal equation
-				{
-					glm::vec4 pos(-2.79703f, 0.170776f, -0.793854f, 1.0f);
-					//pos = glm::vec4(-0.748512, 4.19552, 1.65872, 1.0f);
-					glm::mat4 m = GetLightCam(*l->light).worldToView * pmat;
-					glm::mat4 proj = GetLightCam(*l->light).projection;
-					glm::vec4 pos2 = m * pos;
-					//glm::vec4 pos3 = m * glm::vec4(p7.transform.position, 1.0f);
-					//pos.z = pos.z * 0.5f + 0.5f; // because Portal::GetViewspacePortalEquation(glm::mat4 worldToView)
-					// works only with positive z
-					glm::vec4 pe2 = p->GetViewspacePortalEquation(m);
-					glm::vec4 p4 = proj * glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
-					glm::vec4 pe3 = p->GetNdcSpacePortalEquation(d.lightSpaceMatrix);
-					pos = d.lightSpaceMatrix * pos;
-					glm::vec4 pos3(glm::vec3(pos) / pos.w, 1.0f);
-
-					float dot = glm::dot(d.lsPortalEq, pos);
-					float dot2 = glm::dot(pe2, pos2);
-					float dot3 = glm::dot(pe3, pos3);
-				}
-
 
 				ps->drawableDirLights.insert(new DrawableDirLight({ l, p->dest }));
 			}
@@ -1244,7 +1148,103 @@ void ClearVisibleDirLights()
 //		update everyplace to use PortalSpace::Draw() instead of DrawScene +
 //		update shader to iterate through lights +
 //		fix a bug where shadowmap sometimes has a huge offset - it's probably just that dirLights[0] is a different light (cause i use a hashset) +
-//		add lightspace portalspace equation to sample shadowmaps properly
-//		ambient lighting should only come from the PortalSpace's own lights (add a variable to light that says whether this light is space's own light or modify ambientStrenght when adding?)
+//		add lightspace portalspace equation to sample shadowmaps properly - it's calculated the same way as viewspace plane equation (for ortho projection) +
+//		ambient lighting should only come from the PortalSpace's own lights +
 //		calculate light matrices to fit frustum (especially when inside portals)
+// 
+// 
+// portal should be drawn if:
+// at least one point's z is greater than zero and  range of dot products with forwarnd vector intersects with range of frustum dot products in either ZOX or YOZ planes
+// algo:
+//	the 4 points of the portal basically difine a portal's frustum
+//  get unit vectors from this values
+//	the camera frustum and the "portal's frustum" will intersect if one of either of the frustum's vectors(corner points) is inside the other frustum
+//	a point is inside a frustrum if it's between all of it's planes
+//	i can get normals of the planes with cross product
+//	with normals i can get distance to the planes ((p-q) dot n == p dot n, when q is zero vector) - if all distances are negative (depends on the normal direction) then the point is inside the frustum
+//	don't use near or far planes!
+//	if they intersect then we draw the portal
+//	camera's frustum plane's normals can be precomputed
+//	don't draw if all z's are greater than far plane
+//	don' draw if every portal's point's length is greater than the lenght of the longet line of the camera's frustum ?
+// also need to check visibility through a parent portal
+// 
+// calculating a portal's bounding frustum and render to texture method can be used to create false recursion layers
 //		
+
+
+// TODO:
+// calculate if a point is in a pyramid +
+// check if a plane and an infinite Pyramid overlap +
+// check plane and pyramid overlap +/-
+// Update Camera to allow setting of worldToViewMatrix +
+// Update Camera to allow setting of projectionMatrix
+// Update Camera to save a Pyramid
+// Replace all instances of Cam with Camera
+// 
+// 
+// converting portal plane's points to viewspace:
+// pros:
+//	camera needs to update its pyramid only when projection parameters change
+// cons:
+//	every point of a portal plane needs to converted to viewspace
+//  every precomputed cross product and every normal also needs to be converted to viewspace or reconstructed in viewspace
+// total operations:
+// 
+// updating camera's pyramid when camera's position changes:
+//	pros:
+//		portal's fourpoint planes don't need to be converted to viewspace
+//	cons:
+//		need to minorly update the pyramid class
+//		pyramid updates at every position change and every projection parameter change
+//	updating a pyramid is reconstructing it
+// 
+// operations per portal:
+//	1 array copy
+//	4 vector subtractions
+//	4 cross products
+// 
+// to construct a pyramid I need apex and the 4 base points
+// 
+// to get the 4 base points:
+//	calculate the points in viewspace and convert them to world space
+// apex is the camera's position
+//		
+// TODO: 
+//	change FourPointPlane to RectanglePlane and use extent and origin and normal to contruct it
+// 
+// 
+// new algo to check portal visibilty
+//  transform points to viewspace
+//  check if at least one point is in front of the parent portal plane and z=0 plane
+//	project portal's points onto the parent plane and check if they overlap
+//  transform points to ndc
+//	clamp z to (-1.0; +infinity)
+//	check overlap as a box and a plane ((minX;maxX) ovelaps (-1;1) and (minY;maxY) overlaps(-1;1)and (minZ;maxZ) overlaps(-1;1))
+//  
+// 
+// Ovelap 2d
+//  takes 2  lenght 4 arrays of 2-dimensional points
+//	2 2d boxes (a and b) overlap if either:
+//		corner of a is inside b
+//		corner of b is inside a
+//		edge of a intesects with an adge of b
+//			(edge AB intescts edge CD if C and D are on diferent sides of AB and A and B are on different sides of CD)
+// 
+// 
+// a plane and a pyramid intersect if either:
+//	a cornder of the plane is inside the pyramid
+//	one of the pyramid's edges intersects the plane
+//	one of the plane's edges intersects one of the pyramid's faces
+//	
+// and edge AB intersects face c if 
+//	A is on one side of c while B is on the other
+//	and 
+//  intersection point is within the plane's borders (either rectangle or a triangle)
+// 
+// 
+// TODO:
+// rename plane to rectangle +
+// rename pyramid to RegularPyramid
+// construct RegularPyramid from camera parameters
+// construct Ray from 2 points

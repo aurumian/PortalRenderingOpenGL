@@ -6,7 +6,7 @@
 
 class Actor;
 class Portal;
-
+class Camera;
 
 class PortalSpace
 {
@@ -27,7 +27,7 @@ public:
 
 	void RemoveActor(Actor* actor);
 
-	void Draw(const Cam* cam = nullptr, Material* matOverride = nullptr);
+	void Draw(const Camera* cam = nullptr, Material* matOverride = nullptr);
 
 	void AddPortal(Portal* p);
 
