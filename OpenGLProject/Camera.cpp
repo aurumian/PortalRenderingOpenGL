@@ -57,7 +57,7 @@ void Camera::SetProjectionMatrixPerspective(float fov, float aspectRatio, float 
 	isOrtho = false;
 }
 
-bool Camera::IsOrtho()
+bool Camera::IsOrtho() const
 {
 	return isOrtho;
 }

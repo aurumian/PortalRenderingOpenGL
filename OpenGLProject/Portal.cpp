@@ -4,16 +4,30 @@
 #include "MeshRenderer.h"
 #include "Material.h"
 #include "PortalSpace.h"
-#include "Camera.h"
 
 
 
 bool Portal::IsVisible(const Camera& cam)
 {
-	return Physics::CheckOverlap(cam.GetPyramid(), plane);
+	if (!cam.IsOrtho())
+		return Physics::CheckOverlap(cam.GetPyramid(), plane);
+	else
+		return true;
 }
 
-glm::vec4 Portal::GetViewspacePortalEquation(glm::mat4 worldToView, float isOrtho) const
+Transform Portal::PortalTransformToDest(const Transform& transform)
+{
+	static const Rotator rot = glm::vec3(0.0f, 180.0f, 0.0f);
+
+	Transform t;
+	t.position = dest->GetPortallingMat() * glm::vec4(transform.position, 1.0f);
+	t.SetScale(transform.GetScale());
+	t.rotation = dest->transform.rotation.GetQuaterion() * rot.GetQuaterion() * glm::inverse(this->transform.rotation.GetQuaterion()) * transform.rotation.GetQuaterion();
+
+	return t;
+}
+
+glm::vec4 Portal::GetViewspacePortalEquation(glm::mat4 worldToView, bool isOrtho) const
 {
 	glm::vec3 normal = glm::transpose(glm::inverse(glm::mat3(worldToView * transform.GetTransformMatrix()))) * glm::vec3(0.0f, 0.0f, 1.0f);
 	glm::vec3 q = worldToView * glm::vec4(transform.position, 1.0f);
@@ -98,20 +112,32 @@ PortalRenderTree::PortalRenderTree(PortalSpace::PortalContainerConstRef portals,
 	ConstructTree(portals, cam);
 }
 
-void PortalRenderTree::ConstructTree(PortalSpace::PortalContainerConstRef portals, const Camera& cam)
+void PortalRenderTree::ConstructTree(PortalSpace::PortalContainerConstRef portals, const Camera& cam, const size_t maxDepth)
 {
 	// use breadth first search to construct the tree
 	{
-		numNodes = 0;
+		numNodes = 1;
+
+		auto* root = arr;
+		root->depth = 0;
+		root->firstChild = nullptr;
+		root->parent = nullptr;
+		root->portal = nullptr;
+		root->camera = cam;
+		root->right = nullptr;
+		root->stencil = 0;
+		root->vsPortalEq = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
 
 		list<pair<PortalRenderTreeNode*, Portal*>> pl;
-		// TODO: add only portals that can be seen through the camera
+		// TODO: add only portals that can be seen through the parent portal
 		for (auto* p : portals)
 		{
 			if (p->IsVisible(cam))
-				pl.push_back({ nullptr, p });
+				pl.push_back({ root, p });
 		}
-			
+
+		if (maxDepth == 0)
+			return;
 
 		size_t depth = 1;
 		size_t depthIncrAfter = pl.size();
@@ -121,45 +147,52 @@ void PortalRenderTree::ConstructTree(PortalSpace::PortalContainerConstRef portal
 			pl.pop_front();
 
 			auto* node = arr + numNodes;
+
 			node->parent = p.first;
-			if (node->parent != nullptr)
-			{
-				if (node->parent->firstChild == nullptr)
-					node->parent->firstChild = node;
-				node->portallingMat = node->parent->portallingMat * p.second->GetPortallingMat();
-			}
-			else
-			{
-				node->portallingMat = glm::mat4(1.0f) * p.second->GetPortallingMat();
-			}
+
+			node->camera = node->parent->camera;
+			node->camera.SetWorldToViewMatrix(node->camera.GetWorldToViewMatrix() * p.second->GetPortallingMat());
+
+			if (node->parent->firstChild == nullptr)
+				node->parent->firstChild = node;
 
 			node->portal = p.second;
 
 			node->depth = depth;
+
 			if ((node - 1)->parent == node->parent)
 				(node - 1)->right = node;
+
 			node->right = nullptr;
+
 			node->firstChild = nullptr;
+
+			node->vsPortalEq = p.second->GetViewspacePortalEquation(p.first->camera.GetWorldToViewMatrix(), p.first->camera.IsOrtho());
 
 			depthIncrAfter--;
 			numNodes++;
 			if (numNodes >= ARR_SIZE)
 				break;
+
+			if (depthIncrAfter == 0) {
+				++depth;
+				if (depth > maxDepth)
+					break;
+			}
+
 			for (Portal* po : p.second->dest->portalSpace->GetPortals()) {
 				if (po == p.second->dest)
 					continue;
-				// TODO: add only portals that can be seen through the camera
-				Camera c = cam;
-				c.SetWorldToViewMatrix(c.GetWorldToViewMatrix() * node->GetPortallingMat());
-				if (!po->IsVisible(c))
+				// TODO: add only portals that can be seen through the parent portal
+				if (!po->IsVisible(node->GetCamera()))
 					continue;
 
 				nextDepthIncr++;
 				pl.push_back({ node, po });
 			}
+
 			if (depthIncrAfter == 0)
 			{
-				depth++;
 				depthIncrAfter = nextDepthIncr;
 				nextDepthIncr = 0;
 			}
@@ -170,11 +203,12 @@ void PortalRenderTree::ConstructTree(PortalSpace::PortalContainerConstRef portal
 	{
 		stencil_t stencil = 1;
 		PortalRenderTreeNode* node;
-		if (numNodes > 0)
-			node = arr;
+		auto* const root = arr;
+		if (numNodes > 1)
+			node = arr + 1;
 		else
-			node = nullptr;
-		while (node != nullptr)
+			node = root;
+		while (node != root)
 		{
 			node->stencil = stencil++;
 			if (node->firstChild != nullptr)
@@ -188,10 +222,10 @@ void PortalRenderTree::ConstructTree(PortalSpace::PortalContainerConstRef portal
 				continue;
 			}
 			node = node->parent;
-			while (node != nullptr && node->right == nullptr) {
+			while (node != root && node->right == nullptr) {
 				node = node->parent;
 			}
-			if (node != nullptr)
+			if (node != root)
 			{
 				node = node->right;
 			}
@@ -199,7 +233,7 @@ void PortalRenderTree::ConstructTree(PortalSpace::PortalContainerConstRef portal
 	}
 }
 
-PortalRenderTree::Iterator PortalRenderTree::Begin()
+PortalRenderTree::Iterator PortalRenderTree::Begin() const
 {
 	return Iterator(this);
 }
@@ -214,11 +248,11 @@ PortalRenderTree::Iterator::Iterator()
 	this->node = nullptr;
 }
 
-PortalRenderTree::Iterator::Iterator(PortalRenderTree* tree)
+PortalRenderTree::Iterator::Iterator(const PortalRenderTree* tree)
 {
 	this->tree = tree;
 	if (tree->numNodes > 0)
-		this->node = tree->arr;
+		this->node = const_cast<PortalRenderTreeNode*>(tree->arr);
 	else 
 		this->node = nullptr;
 }
@@ -265,12 +299,12 @@ void DrawPortalPlane(const Portal& p) {
 	r->Draw();
 }
 
-void DrawPortalPlane(const PortalRenderTreeNode* p, bool setStencil)
+void DrawPortalPlane(const PortalRenderTreeNode* p, bool setStencil, const Material* matOverride)
 {
-	DrawPortalPlane(*p, setStencil);
+	DrawPortalPlane(*p, setStencil, matOverride);
 }
 
-void DrawPortalPlane(const PortalRenderTreeNode& p, bool setStencil) {
+void DrawPortalPlane(const PortalRenderTreeNode& p, bool setStencil, const Material* matOverride) {
 	if (setStencil) 
 	{
 		glStencilFunc(GL_ALWAYS, p.GetStencil(), 0xFF);
@@ -278,23 +312,26 @@ void DrawPortalPlane(const PortalRenderTreeNode& p, bool setStencil) {
 	}
 
 	MeshRenderer* r = p.GetPortal()->GetComponent<MeshRenderer>();
-	Shader* sp = r->GetMaterial()->GetShader();
+	Shader* sp;
+	if (matOverride == nullptr)
+		sp = r->GetMaterial()->GetShader();
+	else
+		sp = matOverride->shader;
 
 	sp->Use();
 	sp->setVec3("lightColor", { 0.1f, 0.1f, 0.1f });
-	r->Draw();
+	r->Draw(matOverride);
 }
 
-Camera BeginDrawInsidePortal(const PortalRenderTreeNode& p, const Camera& cam)
+void BeginDrawInsidePortal(const PortalRenderTreeNode& p)
 {
-	Camera c = cam;
+	const auto& c = p.GetCamera();
 	glStencilFunc(GL_EQUAL, p.GetStencil(), 0xFF);
 	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-	c.SetWorldToViewMatrix(cam.GetWorldToViewMatrix() * p.GetPortallingMat());
 	SetGlobalViewMatrix(c.GetWorldToViewMatrix());
-	SetGlobalViewspacePortalEquation(p.GetPortal()->dest->GetViewspacePortalEquation(c.GetWorldToViewMatrix(), c.IsOrtho()));
+	SetGlobalProjectionMatrix(c.GetProjectionMatrix());
+	SetGlobalViewspacePortalEquation(p.GetViewspacePortalEquation());
 	glEnable(GL_CLIP_DISTANCE0);
-	return c;
 }
 
 void EndDrawInsidePortal()
@@ -302,10 +339,10 @@ void EndDrawInsidePortal()
 	glDisable(GL_CLIP_DISTANCE0);
 }
 
-void DrawPortalContents(const PortalRenderTreeNode& p, const Camera& cam, Material* matOverride) 
+void DrawPortalContents(const PortalRenderTreeNode& p, const Material* matOverride) 
 {
-	Camera c = BeginDrawInsidePortal(p, cam);
-	p.GetPortal()->dest->GetPortalSpace()->Draw(&c, matOverride);
+	BeginDrawInsidePortal(p);
+	p.GetDestPortalSpace()->Draw(&p.GetCamera(), matOverride);
 	EndDrawInsidePortal();
 }
 
@@ -342,11 +379,6 @@ stencil_t PortalRenderTreeNode::GetStencil() const
 	return stencil;
 }
 
-glm::mat4 PortalRenderTreeNode::GetPortallingMat() const
-{
-	return portallingMat;
-}
-
 size_t PortalRenderTreeNode::GetDepth() const
 {
 	return depth;
@@ -355,4 +387,22 @@ size_t PortalRenderTreeNode::GetDepth() const
 PortalRenderTreeNode* PortalRenderTreeNode::GetParent() const
 {
 	return parent;
+}
+
+const Camera& PortalRenderTreeNode::GetCamera() const
+{
+	return camera;
+}
+
+const glm::vec4& PortalRenderTreeNode::GetViewspacePortalEquation() const
+{
+	return vsPortalEq;
+}
+
+PortalSpace* PortalRenderTreeNode::GetDestPortalSpace() const
+{
+	if (portal == nullptr)
+		return currentPortalSpace;
+	else
+		return portal->dest->GetPortalSpace();
 }

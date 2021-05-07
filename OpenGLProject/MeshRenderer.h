@@ -13,7 +13,7 @@ public:
 
 	void Draw();
 
-	void Draw(Material* mat);
+	void Draw(const Material* mat);
 
 	Material* GetMaterial() {
 		return material;

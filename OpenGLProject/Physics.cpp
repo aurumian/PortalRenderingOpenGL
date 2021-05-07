@@ -315,9 +315,12 @@ bool Pyramid::DoesIntersectBaseFace(const Ray& ray) const
 	// the point of intersection between ray and the plane
 	glm::vec3 p = ray.origin + distance * ray.direction;
 
+	glm::vec3 o = points[0] + points[1] + points[2] + points[3];
+	o /= 4.0f;
+
 	// check if the point of intersection is inside the plane's borders
-	float x = glm::dot(p, right);
-	float y = glm::dot(p, up);
+	float x = glm::dot(p - o, right);
+	float y = glm::dot(p - o, up);
 
 	return distance <= ray.maxDistance &&
 		x >= -extent.x && x <= extent.x &&

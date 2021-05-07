@@ -9,7 +9,7 @@ void MeshRenderer::Draw()
 }
 
 
-void MeshRenderer::Draw(Material* mat) {
+void MeshRenderer::Draw(const Material* mat) {
 	if (!mesh->setUp)
 		mesh->SetupMesh();
 

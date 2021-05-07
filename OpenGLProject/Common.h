@@ -15,6 +15,8 @@ class PortalShadowedDirLight;
 class Lighting;
 class DrawableDirLight;
 class PortalSpace;
+class Camera;
+class PortalRenderTree;
 
 // most of this file's contents is temporary stuff
 
@@ -44,6 +46,11 @@ void SetGlobalProjectionMatrix(const glm::mat4& projection);
 
 void SetGlobalViewspacePortalEquation(const glm::vec4& eq);
 
+void SetGlobalClippingPlane2(const glm::vec4& eq);
+
+void DrawScene(const Camera& camera, const PortalRenderTree& prTree, const Material* matOverride = nullptr);
+
+
 UniformBufferObject* GetPortalBlockUbo();
 
 // if matOverride is not nullptr DrawScene doesn't change shader that is used
@@ -60,3 +67,13 @@ extern Shadows* shadows;
 extern PortalSpace* currentPortalSpace;
 
 PortalSpace* GetDefaultPortalSpace();
+
+struct InBetweenObject
+{
+	Actor* actor;
+	glm::vec3 enteredNormal;
+	Portal* enteredPortal;
+};
+
+
+void SetCommonShaderValues(MeshRenderer* mr, const Camera& camera, const Material* matOverride = nullptr);

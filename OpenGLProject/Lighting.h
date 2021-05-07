@@ -64,6 +64,8 @@ protected:
 
 	ShadowmapTexture* shadowmaps[MAX_DIR_LIGHT_COUNT];
 	size_t numShadowmaps;
+
+	friend void DrawScene(const Camera& camera, const PortalRenderTree& prTree, const Material* matOverride);
 };
 
 class DirLight : public Actor

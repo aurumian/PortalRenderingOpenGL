@@ -23,11 +23,13 @@ public:
 
 	std::unordered_set<DirLight*> dirLights;
 
+	std::unordered_set<InBetweenObject*> inbetweenObjects;
+
 	void AddActor(Actor* actor);
 
 	void RemoveActor(Actor* actor);
 
-	void Draw(const Camera* cam = nullptr, Material* matOverride = nullptr);
+	void Draw(const Camera* cam = nullptr, const Material* matOverride = nullptr);
 
 	void AddPortal(Portal* p);
 

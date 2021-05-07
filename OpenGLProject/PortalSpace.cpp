@@ -35,7 +35,7 @@ void PortalSpace::RemoveActor(Actor* actor)
 		renderers.erase(mr);
 }
 
-void PortalSpace::Draw(const Camera* cam, Material* matOverride)
+void PortalSpace::Draw(const Camera* cam, const Material* matOverride)
 {
 	if (cam != nullptr)
 	{

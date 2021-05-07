@@ -53,7 +53,7 @@ public:
 		SetProjectionMatrixPerspective(fov, aspectRatio, nearClippingPlane, farClippingPlane);
 	}
 
-	bool IsOrtho();
+	bool IsOrtho() const;
 
 	const Pyramid& GetPyramid() const
 	{

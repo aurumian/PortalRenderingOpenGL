@@ -17,6 +17,7 @@ uniform mat4 objectToWorld;
 layout (std140) uniform PortalBlock 
 {
 	vec4 portalPlaneEq;
+	vec4 clippingPlane2;
 };
 
 
@@ -34,7 +35,7 @@ out VS_OUT {
 
 
 
-out float gl_ClipDistance[1];
+out float gl_ClipDistance[2];
 
 
 
@@ -62,6 +63,7 @@ void main(){
 	// clip everyting in front of the portal (between virtual camera and the portal)
 	vec4 viewPos = worldToView * worldPos;
 	gl_ClipDistance[0] = dot(viewPos, portalPlaneEq);
+	gl_ClipDistance[1] = dot(viewPos, clippingPlane2);
 	vs_out.Normal = normalMatrix * aNormal;
 	vs_out.FragPos = (worldToView * worldPos).xyz;
 	vs_out.texCoord = TexCoord;

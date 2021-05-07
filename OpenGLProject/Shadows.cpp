@@ -9,6 +9,7 @@
 #include "Material.h"
 #include "PortalSpace.h"
 #include "Camera.h"
+#include "Actor.h"
 
 Material* smMat;
 Material* clearDepthMat;
@@ -90,6 +91,32 @@ void Shadows::RenderShadowmap(PortalShadowedDirLight& light)
 	ps->Draw(&cam, smMat);
 	glDisable(GL_CULL_FACE);
 
+	// render current portal space pices of inbetween objects
+	{
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_FRONT);
+		for (const auto o : ps->inbetweenObjects)
+		{
+			const Camera& camera = cam;
+			glm::mat3 normalMat = glm::transpose(glm::inverse(glm::mat3(camera.GetWorldToViewMatrix())));
+			//glm::mat3 normalMat = glm::mat3(camera.GetWorldToViewMatrix());
+			glm::vec3 vn = normalMat * o->enteredNormal;
+			glm::vec4 eq = o->enteredPortal->GetViewspacePortalEquation(camera.GetWorldToViewMatrix(), camera.IsOrtho());
+			if (glm::dot(vn, glm::vec3(eq)) < 0.0f)
+				eq = -eq;
+
+			// temp
+			MeshRenderer* mr = o->actor->GetComponent<MeshRenderer>();
+
+			glEnable(GL_CLIP_DISTANCE1);
+			SetGlobalClippingPlane2(eq);
+			mr->Draw(smMat);
+			glDisable(GL_CLIP_DISTANCE1);
+
+		}
+		glDisable(GL_CULL_FACE);
+	}
+
 	glEnable(GL_STENCIL_TEST);
 	// redner portal planes to apply stencil values
 	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
@@ -116,17 +143,46 @@ void Shadows::RenderShadowmap(PortalShadowedDirLight& light)
 	}
 	glDepthFunc(GL_LESS);
 
+	const Camera& camera = cam;
 	// for each portal draw the scene again to update the depth map
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_FRONT);
 	for (auto& pa : light.perPortal) {
 		Portal* p = pa.first;
 		if (p == nullptr)
 			continue;
 		cam.SetWorldToViewMatrix(wtvs[p]);
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_FRONT);
+		{
+			for (const auto o : ps->inbetweenObjects)
+			{
+				if (o->enteredPortal != p)
+				{
+					continue;
+				}
+
+				SetGlobalViewMatrix(camera.GetWorldToViewMatrix());
+				SetGlobalProjectionMatrix(camera.GetProjectionMatrix());
+				glm::mat3 normalMat = glm::transpose(glm::inverse(glm::mat3(camera.GetWorldToViewMatrix())));
+				glm::vec3 vn = normalMat * o->enteredNormal;
+				glm::vec4 eq = o->enteredPortal->GetViewspacePortalEquation(camera.GetWorldToViewMatrix(), camera.IsOrtho());
+				if (glm::dot(vn, glm::vec3(eq)) < 0.0f)
+				{
+
+					// temp
+					MeshRenderer* mr = o->actor->GetComponent<MeshRenderer>();
+					glEnable(GL_CLIP_DISTANCE1);
+					SetGlobalClippingPlane2(eq);
+					glStencilFunc(GL_EQUAL, p->stencilVal, 0xFF);
+					glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+					mr->Draw(smMat);
+					glDisable(GL_CLIP_DISTANCE1);
+				}
+
+			}
+		}
 		wtvs[p] = DrawPortalContents(*p, cam, smMat);
-		glDisable(GL_CULL_FACE);
 	}
+	glDisable(GL_CULL_FACE);
 
 	glDisable(GL_STENCIL_TEST);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);

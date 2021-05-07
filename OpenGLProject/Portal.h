@@ -3,6 +3,7 @@
 #include "MathInclude.h"
 #include "Actor.h"
 #include "PortalSpace.h"
+#include "Camera.h"
 
 #include <unordered_map>
 #include <list>
@@ -38,17 +39,16 @@ public:
 
 	stencil_t stencilVal;
 	stencil_t prevStencil;
-	// portals that can be seen through this portal
-	vector<PortalPtr> cbsPortals;
+
 	RectanglePlane plane = RectanglePlane(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(0.5f, 0.5f));
 
 	PortalPtr dest;
 
 	bool IsVisible(const Camera& cam);
 
+	Transform PortalTransformToDest(const Transform& t);
 
-
-	glm::vec4 GetViewspacePortalEquation(glm::mat4 worldToView, float isOrtho = false) const;
+	glm::vec4 GetViewspacePortalEquation(glm::mat4 worldToView, bool isOrtho = false) const;
 
 	glm::mat4 GetPortallingMat() const;
 
@@ -65,9 +65,14 @@ class PortalRenderTreeNode {
 public:
 	PortalPtr GetPortal() const;
 	stencil_t GetStencil() const;
-	glm::mat4 GetPortallingMat() const;
 	size_t GetDepth() const;
 	PortalRenderTreeNode* GetParent() const;
+
+	const Camera& GetCamera() const;
+
+	const glm::vec4& GetViewspacePortalEquation() const;
+
+	PortalSpace* GetDestPortalSpace() const;
 
 	friend class PortalRenderTree;
 private:
@@ -76,7 +81,8 @@ private:
 	PortalRenderTreeNode* right = nullptr;
 	PortalRenderTreeNode* parent = nullptr;
 	stencil_t stencil = 0;
-	glm::mat4 portallingMat = glm::mat4(1.0f);
+	Camera camera;
+	glm::vec4 vsPortalEq;
 	size_t depth = 0;
 };
 
@@ -89,27 +95,27 @@ public:
 	/*
 	* Constructs a tree discarding previous elements
 	*/
-	void ConstructTree(PortalSpace::PortalContainerConstRef portals, const Camera& cam);
+	void ConstructTree(PortalSpace::PortalContainerConstRef portals, const Camera& cam, const size_t maxDepth = SIZE_MAX);
 
 	class Iterator {
 	public:
 		Iterator();
-		Iterator(PortalRenderTree* tree);
+		Iterator(const PortalRenderTree* tree);
 		Iterator& operator++();
 		Iterator operator++(int);
 		PortalRenderTreeNode*& operator*();
 		bool operator==(const Iterator& other) const;
 		bool operator!=(const Iterator& other) const;
 	private:
-		PortalRenderTree* tree;
+		const PortalRenderTree* tree;
 		PortalRenderTreeNode* node;
 	};
 
-	Iterator Begin();
+	Iterator Begin() const;
 	const Iterator& End() const;
 
 private:
-	static const size_t ARR_SIZE = Portal::maxNumPortalRenderings;
+	static const size_t ARR_SIZE = Portal::maxNumPortalRenderings + 1;
 	PortalRenderTreeNode arr[ARR_SIZE];
 	size_t numNodes = 0;
 	Iterator end;
@@ -125,11 +131,11 @@ void UpdateStencil(const std::list<PortalPtr>& pl, std::unordered_map<PortalCons
 glm::mat4 DrawPortalContents(const Portal& p1, const Camera& cam, Material* matOverride = nullptr);
 
 // The procedure assumes the projection and worldToView matrices are already set
-void DrawPortalPlane(const PortalRenderTreeNode& p, bool setStencil = true);
-void DrawPortalPlane(const PortalRenderTreeNode* p, bool setStencil = true);
+void DrawPortalPlane(const PortalRenderTreeNode& p, bool setStencil = true, const Material* matOverride = nullptr);
+void DrawPortalPlane(const PortalRenderTreeNode* p, bool setStencil = true, const Material* matOverride = nullptr);
 
-void DrawPortalContents(const PortalRenderTreeNode& p, const Camera& cam, Material* matOverride = nullptr);
+void DrawPortalContents(const PortalRenderTreeNode& p, const Material* matOverride = nullptr);
 
-Camera BeginDrawInsidePortal(const PortalRenderTreeNode& p, const Camera& cam);
+void BeginDrawInsidePortal(const PortalRenderTreeNode& p);
 
 void EndDrawInsidePortal();
