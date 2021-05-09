@@ -66,6 +66,7 @@ protected:
 	size_t numShadowmaps;
 
 	friend void DrawScene(const Camera& camera, const PortalRenderTree& prTree, const Material* matOverride);
+	friend void GeometryPass(const Camera& camera, const PortalRenderTree& prTree, const Material* matOverride);
 };
 
 class DirLight : public Actor

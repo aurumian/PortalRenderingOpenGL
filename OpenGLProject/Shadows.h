@@ -9,7 +9,7 @@ class Portal;
 class Material;
 class DirLight;
 
-const GLsizei SHADOW_MAP_SIZE = 1024 * 2;
+const GLsizei SHADOW_MAP_SIZE = 1024 * 4;
 
 class ShadowmapTexture
 {

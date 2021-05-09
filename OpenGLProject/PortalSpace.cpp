@@ -44,38 +44,45 @@ void PortalSpace::Draw(const Camera* cam, const Material* matOverride)
 	}
 
 	// set global light data here
-	lighting->AddLights(this, *cam);
-	lighting->SendToGPU();
+	if (matOverride == nullptr)
+	{
+		lighting->AddLights(this, *cam);
+		lighting->SendToGPU();
+	}
 
 	for (MeshRenderer* mr : renderers)
 	{
+		Shader* sp;
 		if (matOverride == nullptr)
 		{
-			Shader* sp = mr->GetMaterial()->GetShader();
-			sp->Use();
-			sp->setFloat("material.shiness", 32.0f);
-			// set shadowmaps for the shader
-			lighting->SetShadowmaps(sp);
-			
-
-			//temp
-			sp->setVec3("pointLight.position", cam->GetWorldToViewMatrix() * glm::vec4(bulb.transform.position, 1.0f));
-			sp->setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
-			sp->setVec3("pointLight.position", cam->GetWorldToViewMatrix() * glm::vec4(bulb.transform.position, 1.0f));
-
-
-			// set normal matrix
-			if (matOverride == nullptr) {
-				glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(cam->GetWorldToViewMatrix() * mr->GetTransform().GetTransformMatrix())));
-				sp->SetMat3("normalMatrix", normalMatrix);
-			}
+			sp = mr->GetMaterial()->GetShader();
 		}
+		else
+		{
+			sp = matOverride->shader;
+		}
+		sp->Use();
+		sp->setFloat("material.shiness", 32.0f);
+		// set shadowmaps for the shader
+		lighting->SetShadowmaps(sp);
+
+
+		//temp
+		sp->setVec3("pointLight.position", cam->GetWorldToViewMatrix() * glm::vec4(bulb.transform.position, 1.0f));
+		sp->setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
+		sp->setVec3("pointLight.position", cam->GetWorldToViewMatrix() * glm::vec4(bulb.transform.position, 1.0f));
+
+
+		// set normal matrix
+		glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(cam->GetWorldToViewMatrix() * mr->GetTransform().GetTransformMatrix())));
+		sp->SetMat3("normalMatrix", normalMatrix);
 
 		// draw
 		mr->Draw(matOverride);
 	}
 
-	lighting->ClearLights();
+	if (matOverride == nullptr)
+		lighting->ClearLights();
 }
 
 

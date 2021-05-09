@@ -131,6 +131,18 @@
     <None Include="clearDepthFragment.fsf">
       <Filter>Source Files\GLSL Shaders</Filter>
     </None>
+    <None Include="Deferred.fsf">
+      <Filter>Source Files\GLSL Shaders</Filter>
+    </None>
+    <None Include="LightPass.fsf">
+      <Filter>Source Files\GLSL Shaders</Filter>
+    </None>
+    <None Include="Deferred.vs">
+      <Filter>Source Files\GLSL Shaders</Filter>
+    </None>
+    <None Include="InsideSliceDeferred.vs">
+      <Filter>Source Files\GLSL Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ShaderProgram.h">

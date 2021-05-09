@@ -23,17 +23,17 @@ void MeshRenderer::Draw(const Material* mat) {
 	// set textures
 	GLuint diffuseNr = 0;
 	GLuint specularNr = 0;
-	for (GLuint i = 0; i < mat->textures.size(); i++) {
+	for (GLuint i = 0; i < material->textures.size(); i++) {
 		glActiveTexture(GL_TEXTURE0 + i + 8 /* offset for shadowmaps */);
 		string number;
-		string name = mat->textures[i].type;
+		string name = material->textures[i].type;
 		if (name == "texture_diffuse")
 			number = to_string(diffuseNr++);
 		else if (name == "texture_specular")
 			number = to_string(specularNr++);
 
 		mat->shader->setInt(("material." + name + number).c_str(), i + 8);
-		glBindTexture(GL_TEXTURE_2D, mat->textures[i].id);
+		glBindTexture(GL_TEXTURE_2D, material->textures[i].id);
 	}
 	glActiveTexture(GL_TEXTURE0);
 

@@ -60,7 +60,7 @@ glm::vec3 objectColor(1.0f, 0.5f, 0.31f);
 
 void CalcVisibleDirLights();
 
-void ForwardRenderScene(const Camera& camera);
+
 
 
 /* window resize callback
@@ -114,6 +114,7 @@ MeshRenderer* monkeyRenderer;
 MeshRenderer* sceneRenderer;
 MeshRenderer* scene2Renderer;
 MeshRenderer* fsqRenderer;
+MeshRenderer* lpRenderer;
 
 
 //
@@ -153,7 +154,7 @@ int main() {
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	//create window
-	GLFWwindow* window = glfwCreateWindow(800, 600, "OpenGLProject", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGLProject", NULL, NULL);
 	if (window == NULL) {
 		std::cout << "Failed to create GLFW window" << std::endl;
 		glfwTerminate();
@@ -419,6 +420,26 @@ int main() {
 	clearDepthShader->BindUBO(globalMatrices);
 	clearDepthShader->BindUBO(GetPortalBlockUbo());
 
+	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\Deferred.vs");
+	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\Deferred.fsf");
+	Shader* defferedGPassShader = comp.Compile();
+	defferedGPassShader->BindUBO(globalMatrices);
+	defferedGPassShader->BindUBO(GetPortalBlockUbo());
+	gPassMat.shader = defferedGPassShader;
+
+	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\InsideSliceDeferred.vs");
+	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\Deferred.fsf");
+	Shader* deferredInsGPassShader = comp.Compile();
+	deferredInsGPassShader->BindUBO(globalMatrices);
+	deferredInsGPassShader->BindUBO(GetPortalBlockUbo());
+	gPassInsMat.shader = deferredInsGPassShader;
+
+	comp.SetVertexShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\fsqVertex.vs");
+	comp.SetFragmentShader("D:\\VSProjects\\OpenGLProject\\OpenGLProject\\LightPass.fsf");
+	Shader* lpShader = comp.Compile();
+	lighting->BindUboToShader(lpShader);
+	lpRenderer = new MeshRenderer(&fsq, new Material(lpShader));
+
 	contMat.shader = sp;
 	sceneMat.shader = grassShader;
 
@@ -648,7 +669,7 @@ int main() {
 
 	currentPortalSpace = dps;
 
-	// object bewtween portals
+	// object between portals
 	{
 		monke.AddComponent(new MeshRenderer(&monkey, &contMat));
 		Transform t;
@@ -716,6 +737,8 @@ int main() {
 	// 
 	CalcVisibleDirLights();
 
+	CreateGBuffer();
+
 	Time::Init();
 	//render loop
 	while (!glfwWindowShouldClose(window)) {
@@ -726,262 +749,9 @@ int main() {
 		processInput(window, sp);
 
 		//rendering
-		if (false)
-		{
-			//open gl render config
-			glEnable(GL_DEPTH_TEST);
-			glEnable(GL_BLEND);
-			//glEnable(GL_CULL_FACE);
-			//glCullFace(GL_BACK);
-			//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-			glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		//ForwardRenderScene(camera);
 
-			// temp 
-			//{
-			//	Transform t = p7.transform;
-			//	static glm::vec3 rot = glm::vec3(0.0f, -10.0f, 0.0f);;
-			//	//rot.y += 0.5f;
-			//	t.rotation = rot;
-			//	t.position = { -2.1f , portalDims.y, 5.0f };
-			//	p7.transform = t;
-			//	t = p5.transform;
-			//	t.position = glm::vec3(2.1f, portalDims.y, -5.0f);
-			//	p5.transform = t;
-			//	ClearVisibleDirLights();
-			//	CalcVisibleDirLights();
-			//}
-
-			// render shadowmaps
-			{
-				if (PortalSpace::shadowmappedLights.size() > 0)
-					shadows->RenderShadowmap(*(*dps->shadowmappedLights.begin()));
-			}
-
-
-
-			// draw the scene the first time
-			if (false)
-			{
-				currentPortalSpace->Draw(&camera);
-			}
-
-			glm::vec3 visibleNormal = p7.transform.rotation.GetForwardVector();
-			// temp draw the current space slice
-			if (false)
-			{
-				
-				glm::mat3 normalMat = glm::transpose(glm::inverse(glm::mat3(camera.GetWorldToViewMatrix())));
-				glm::vec3 vn = normalMat * visibleNormal;
-				glm::vec4 eq = p7.GetViewspacePortalEquation(camera.GetWorldToViewMatrix(), camera.IsOrtho());
-				if (glm::dot(vn, glm::vec3(eq)) < 0.0f)
-					eq = -eq;
-				SetGlobalViewspacePortalEquation(eq);
-				glEnable(GL_CLIP_DISTANCE0);
-				monke.GetComponent<MeshRenderer>()->Draw();
-				glDisable(GL_CLIP_DISTANCE0);
-			}
-
-			// draw shadowmap on fsq
-			if (false)
-			{
-				glDisable(GL_DEPTH_TEST);
-				glBindTexture(GL_TEXTURE_2D, shadowMap);
-				fsqRenderer->GetMaterial()->shader->Use();
-				fsqRenderer->GetMaterial()->shader->setInt("screenTex", 0);
-				fsqRenderer->Draw();
-				glEnable(GL_DEPTH_TEST);
-			}
-
-			// draw prerendered portal
-			if (false)
-			{
-				Transform t;
-				t.position = { 1.0f, portalDims.y, -2.2f };
-				//t.rotation = Rotator({ 0.0f, 0.0f, 0.0f });
-				Shader* s = ppRenderer->GetMaterial()->GetShader();
-				glm::mat4 scale = glm::mat4(1.0f);
-				scale[0][0] = 0.5f / portalDims.x;
-				scale[1][1] = 0.5f / portalDims.y;
-				glm::mat4 scale2 = glm::mat4(1.0f);
-				//scale2[0][0] = 8.0f/6.0f;
-				//scale2[1][1] = 0.5f / portalDims.y;
-				s->Use();
-				glm::vec3 psCamPos = scale2 * scale * t.GetInverseTransformMatrix() * glm::vec4(camera.GetTransform().position, 1.0f);
-				s->setVec3("psCamPos", psCamPos);
-				// do we need this here?
-				{
-					SetGlobalViewMatrix(camera.GetWorldToViewMatrix());
-					SetGlobalProjectionMatrix(camera.GetProjectionMatrix());
-				}
-				//s->setMat4("objectToWorld", t.GetTransformMatrix());
-				s->setMat4("portalDimsScaler", scale);
-				ppRenderer->Draw();
-			}
-
-			// draw portals - new algo
-			//if (false)
-			{
-				// algorithm(using PortalRenderTree):
-				// having rendered the scene
-				// get portals at depth 1
-				// render portal planes setting the stencil values if the depth test passes
-				// clear depth where the portals' respective stencil values are set (is one fullscreen render call better than a draw call for each plane? - it can work only for depth 1)
-				// render contents of each of the portals
-				// depth 2+:
-				// get portals at the depth
-				// render portal planes setting the stencil values:
-				//	at depth 2+ rendering portals is harder since i can only increment stencil values (I can download AMD_stencil_operation_extended extension for amd cards to change it to any value)
-				//	without extension:
-				//		the stencil values have to be updated incrementally
-				//		variation 1:
-				//		render all portal planes each time incrementing the stencil value until the stencil value is what it's supposed to be for the portal
-				//		(remove the portal from the list when the value is right, keep rendering until the list is empty)
-				//		if portals are grouped by curent stencil value (parent portal's value at firts iteration) gpu instancing can be used to make rendering faster (if the portals use the same mesh)
-				//		variation 2:
-				//		render the portal planes without modifying the stencil (so that stencil does not interfere with depth oreder of portals)
-				//		since we render the portal planes anyway we can draw them before rendering the contents of the parent portal(s) (which is an optimization - a selective z-prepass) - wrong 'cause it obstructs scene objects
-				//		set depth test to equal
-				//		set stencil values for each portal individually (incrementally obviously)
-				//		slightly increases number of draw calls (compared to variation 1)
-				//		removes some of the overhead of variation 1 and makes the algo simpler
-				//	with extension:
-				//		set stencil test to equal to parent's
-				//		draw portal planes (obviously in parent's stencil) without modifying stencil
-				//		set depth test to equal
-				//		draw the portal planes  setting the new stencil values
-				//		return depth test to previous value
-				//	render the portal's contents
-				// keep rendering until there's no more portals left
-				// 
-				//
-
-				// compute the portal rendering tree
-				prTree.ConstructTree(currentPortalSpace->GetPortals(), camera);
-
-				// clear stencil
-				glClear(GL_STENCIL_BUFFER_BIT);
-				glEnable(GL_STENCIL_TEST);
-
-				// for all possible depths
-				size_t depth = 0;
-				for (auto iter = prTree.Begin(); iter != prTree.End(); depth++)
-				{
-
-					// render the portal planes inside the portals without changing the stencil values
-					auto it = iter;
-					{
-						
-						// get iterator to next depth
-						while (it != prTree.End() && (*it)->GetDepth() == depth)
-						{
-							++it;
-						}
-						auto i = it;
-						glEnable(GL_DEPTH_CLAMP);
-						while (i != prTree.End() && (*i)->GetDepth() == depth + 1)
-						{
-							BeginDrawInsidePortal(*(*i)->GetParent());
-							DrawPortalPlane(*(i), false);
-							EndDrawInsidePortal();
-							++i;
-						}
-						glDisable(GL_DEPTH_CLAMP);
-
-					}
-
-
-					// Render portals' contents
-					{
-						while (iter != prTree.End() && (*iter)->GetDepth() == depth)
-						{
-							DrawPortalContents(**iter);
-							++iter;
-						}
-					}
-
-
-					// update stencil
-					{
-						GLint dFunc;
-						glGetIntegerv(GL_DEPTH_FUNC, &dFunc);
-						glDepthFunc(GL_EQUAL);
-						if (depth == 0)
-						{
-							auto i = it;
-							{
-								glEnable(GL_DEPTH_CLAMP);
-								while (i != prTree.End() && (*i)->GetDepth() == depth + 1)
-								{
-									DrawPortalPlane(*(*i), true);
-									++i;
-								}
-								glDisable(GL_DEPTH_CLAMP);
-							}
-						}
-						else
-						{
-
-							auto i = it;
-							while (i != prTree.End() && (*i)->GetDepth() == depth + 1)
-							{
-								BeginDrawInsidePortal(*(*i)->GetParent());
-								glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
-								stencil_t s = (*i)->GetParent()->GetStencil();
-								while (s < (*i)->GetStencil())
-								{
-									glStencilFunc(GL_EQUAL, ++s, 0xFF);
-									DrawPortalPlane(**i);
-								}
-								EndDrawInsidePortal();
-								++i;
-							}
-						}
-						glDepthFunc(dFunc);
-						glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-					}
-
-					// clear depth - right now i don't need depth buffer, so i can just clear it
-					// alternatively i can use glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE), glDepthFunc(GL_ALWAYS) and a shader that clears the depth
-					// for each drawn plane (or a fullscreen plane with glStencilFunc(GL_GREATER, 0, 0xFF), glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP) - possible only the first time)
-					glClear(GL_DEPTH_BUFFER_BIT);
-
-
-
-					// temp draw the inside slice
-					if (depth == 1 && false)
-					{
-						auto i = iter;
-						while (i != prTree.End() && (*i)->GetDepth() == depth)
-						{
-							if ((*i)->GetPortal() == &p7)
-							{
-								SetGlobalViewMatrix(camera.GetWorldToViewMatrix());
-								SetGlobalProjectionMatrix(camera.GetProjectionMatrix());
-								glStencilFunc(GL_EQUAL, (*i)->GetStencil(), 0xFF);
-								glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-								glm::mat3 normalMat = glm::transpose(glm::inverse(glm::mat3(camera.GetWorldToViewMatrix())));
-								glm::vec3 vn = normalMat * visibleNormal;
-								glm::vec4 eq = p7.GetViewspacePortalEquation(camera.GetWorldToViewMatrix(), camera.IsOrtho());
-								if (glm::dot(vn, glm::vec3(eq)) < 0.0f)
-									monke.GetComponent<MeshRenderer>()->Draw();
-								//EndDrawInsidePortal();
-								break;
-							}
-							++i;
-						}
-					}
-
-
-				}
-
-				glDisable(GL_STENCIL_TEST);
-			}
-			shadows->FreePool();
-		}
-		
-		
-		ForwardRenderScene(camera);
+		DeferedRenderScene(camera);
 
 		//check all the events and swap the buffers
 		glfwSwapBuffers(window);

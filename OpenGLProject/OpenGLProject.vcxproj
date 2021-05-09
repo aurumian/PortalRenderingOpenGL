@@ -158,10 +158,14 @@
     <None Include="BulbFragmentShader.fsf" />
     <None Include="BulbVertexShader.vs" />
     <None Include="clearDepthFragment.fsf" />
+    <None Include="Deferred.vs" />
+    <None Include="Deferred.fsf" />
     <None Include="fsqFragment.fsf" />
     <None Include="fsqVertex.vs" />
     <None Include="GrassFragmentShader.fsf" />
     <None Include="FragmenShader.fsf" />
+    <None Include="InsideSliceDeferred.vs" />
+    <None Include="LightPass.fsf" />
     <None Include="ppFragment.fsf" />
     <None Include="ppVertex.vs" />
     <None Include="smFragment.fsf" />

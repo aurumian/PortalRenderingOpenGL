@@ -18,6 +18,9 @@ class PortalSpace;
 class Camera;
 class PortalRenderTree;
 
+const unsigned int SCR_WIDTH = 1280;
+const unsigned int SCR_HEIGHT = 720;
+
 // most of this file's contents is temporary stuff
 
 //struct Cam {
@@ -32,6 +35,9 @@ extern UniformBufferObject* globalMatrices;
 extern Material sceneMat;
 
 extern Lighting* lighting;
+
+extern Material gPassMat;
+extern Material gPassInsMat;
 
 // temp
 extern glm::mat4 portallingMat;
@@ -50,6 +56,14 @@ void SetGlobalClippingPlane2(const glm::vec4& eq);
 
 void DrawScene(const Camera& camera, const PortalRenderTree& prTree, const Material* matOverride = nullptr);
 
+void ForwardRenderScene(const Camera& camera);
+
+
+void CreateGBuffer();
+
+void DeferedRenderScene(const Camera& camera);
+
+void GeometryPass(const Camera& camera, const PortalRenderTree& prTree, const Material* matOverride);
 
 UniformBufferObject* GetPortalBlockUbo();
 
