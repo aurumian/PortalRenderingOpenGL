@@ -5,7 +5,7 @@
 #include "Portal.h"
 #include "Camera.h"
 
-std::unordered_set<PortalShadowedDirLight*> PortalSpace::shadowmappedLights;
+std::unordered_set<ShadowedDirLight*> PortalSpace::shadowmappedLights;
 
 // temp
 extern Actor bulb;

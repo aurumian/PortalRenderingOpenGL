@@ -24,7 +24,7 @@ class Shadows
 public:
 	Shadows();
 	static void ConfigureFBOAndTextureForShadowmap(GLuint& fbo, GLuint& tex, GLuint& stencil_view);
-	void RenderShadowmap(PortalShadowedDirLight& light);
+	void RenderShadowmap(ShadowedDirLight& light);
 	void FreePool();
 protected:
 	ShadowmapTexture shadowmaps[Lighting::MAX_DIR_LIGHT_COUNT];

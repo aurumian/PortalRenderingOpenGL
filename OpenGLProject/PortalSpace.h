@@ -17,7 +17,7 @@ public:
 	typedef const PortalContainer& PortalContainerConstRef;
 
 	// all drawable lights of a portal space
-	static std::unordered_set<PortalShadowedDirLight*> shadowmappedLights;
+	static std::unordered_set<ShadowedDirLight*> shadowmappedLights;
 
 	std::unordered_set<DrawableDirLight*> drawableDirLights;
 

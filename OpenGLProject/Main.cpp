@@ -878,16 +878,19 @@ void CalcVisibleDirLights() {
 		{
 			if (ps->shadowmappedLights.size() < Lighting::MAX_DIR_LIGHT_COUNT)
 			{
-				PortalShadowedDirLight* sdl = new PortalShadowedDirLight();
+				ShadowedDirLight* sdl = new ShadowedDirLight();
 				sdl->light = l;
-				PerPortalDirLightData d;
+				DrawableDirLight* ddl = new DrawableDirLight();
+				DrawableDirLight& d = *ddl;
 				d.direction = l->transform.rotation.GetForwardVector();
 				d.lightSpaceMatrix = l->GetLightSpaceMatrix();
 				d.stencilVal = 0;
 				d.lsPortalEq = glm::vec4(0.0f);
-				sdl->perPortal.insert({ nullptr, d });
+				d.sdl = sdl;
+				d.portal = nullptr;
+				auto res = sdl->drawableLights.insert(ddl);
 				PortalSpace::shadowmappedLights.insert(sdl);
-				ps->drawableDirLights.insert(new DrawableDirLight({ sdl, nullptr }));
+				ps->drawableDirLights.insert(ddl);
 			}
 		}
 	}
@@ -898,7 +901,7 @@ void CalcVisibleDirLights() {
 		for (Portal* p : ps->GetPortals())
 		{
 			PortalSpace* other = p->dest->GetPortalSpace();
-			for (PortalShadowedDirLight* l : PortalSpace::shadowmappedLights)
+			for (ShadowedDirLight* l : PortalSpace::shadowmappedLights)
 			{
 				// must use only the other portalSpace's own lights
 				if (l->light->GetPortalSpace() != other)
@@ -907,7 +910,8 @@ void CalcVisibleDirLights() {
 					break;
 
 				ps->shadowmappedLights.insert(l);
-				PerPortalDirLightData d;
+				DrawableDirLight* ddl = new DrawableDirLight();
+				DrawableDirLight& d = *ddl;
 				// TODO: calculate direction properly
 				// since portallingMat doesn't use scale
 				// we can use upper right corner of the portalling matrix 
@@ -915,11 +919,13 @@ void CalcVisibleDirLights() {
 				glm::mat4 pmat = p->dest->GetPortallingMat();
 				d.direction = glm::mat3(pmat) * l->light->transform.rotation.GetForwardVector();
 				d.lightSpaceMatrix = l->light->GetLightSpaceMatrix() * pmat;
-				d.stencilVal = (uint32_t)l->perPortal.size();
+				d.stencilVal = (uint32_t)l->drawableLights.size();
 				d.lsPortalEq = p->GetViewspacePortalEquation(d.lightSpaceMatrix, true);
-				l->perPortal.insert({ p->dest, d });
+				d.sdl = l;
+				d.portal = p->dest;
+				l->drawableLights.insert(ddl);
 
-				ps->drawableDirLights.insert(new DrawableDirLight({ l, p->dest }));
+				ps->drawableDirLights.insert(ddl);
 			}
 			if (ps->drawableDirLights.size() >= Lighting::MAX_DIR_LIGHT_COUNT)
 				break;
@@ -963,7 +969,7 @@ void ClearVisibleDirLights()
 // as should all actors
 // 
 // RenderShadowmap needs to store the PerPortalLightData
-// PortalShadowedDirLight 
+// ShadowedDirLight 
 // 
 // Shadows.cpp/Shadows.h need to have a pool of textures for the shadowmaps
 // only 4(depends on the number of lights) of them are used at the same time, anyway

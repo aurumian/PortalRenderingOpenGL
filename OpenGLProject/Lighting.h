@@ -1,7 +1,7 @@
 #pragma once
 
 #include <glad/glad.h>
-#include <map>
+#include <unordered_set>
 
 #include "Transform.h"
 #include "Common.h"
@@ -12,10 +12,10 @@
 class Shader;
 class UniformBufferObject;
 class DirLight;
-struct PerPortalDirLightData;
-class PortalShadowedDirLight;
+struct ShadowedDirLight;
 class ShadowmapTexture;
 class Camera;
+struct DrawableDirLigth;
 
 // mapping of the GPU side DirLight struct onto CPU
 class GpuDirLight {
@@ -75,8 +75,6 @@ public:
 	float intensity = 1.0f;
 	float ambientStrenght = 0.1f;
 	glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f);
-	GLuint smStencil = 0;
-	glm::mat4 lightSpaceMatrix; // matrix that transforms worldspace coordinates to lightspace
 	GLuint shadowmap;
 
 	// shadow rendering parameters
@@ -91,25 +89,20 @@ public:
 Camera GetLightCam(const DirLight& light);
 
 
-struct PerPortalDirLightData {
+
+struct ShadowedDirLight
+{
+	DirLight* light;
+	ShadowmapTexture* shadowmap;
+	std::unordered_set<DrawableDirLight*> drawableLights;
+};
+
+struct DrawableDirLight
+{
+	ShadowedDirLight* sdl;
 	uint32_t stencilVal;
 	glm::mat4 lightSpaceMatrix;
 	glm::vec3 direction;
 	glm::vec4 lsPortalEq;
-};
-
-class PortalShadowedDirLight
-{
-public:
-	DirLight* light;
-	ShadowmapTexture* shadowmap;
-	std::map<Portal*, PerPortalDirLightData> perPortal;
-};
-
-class DrawableDirLight
-{
-public:
-	PortalShadowedDirLight* psdl;
-	// to query perPortal of PortalShadowedDirLight
 	Portal* portal;
 };

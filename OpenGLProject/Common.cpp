@@ -149,7 +149,9 @@ void DrawScene(const Camera& camera, const PortalRenderTree& prTree, const Mater
 				++it;
 			}
 			auto i = it;
+
 			glEnable(GL_DEPTH_CLAMP);
+
 			while (i != prTree.End() && (*i)->GetDepth() == depth + 1)
 			{
 				BeginDrawInsidePortal(*(*i)->GetParent());
@@ -157,6 +159,7 @@ void DrawScene(const Camera& camera, const PortalRenderTree& prTree, const Mater
 				EndDrawInsidePortal();
 				++i;
 			}
+
 			glDisable(GL_DEPTH_CLAMP);
 
 		}

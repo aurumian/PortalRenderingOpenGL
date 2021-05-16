@@ -30,7 +30,7 @@ out VS_OUT {
 	vec3 worldPos;
 } vs_out;
 
-out float gl_ClipDistance[2];
+out float gl_ClipDistance[];
 
 void main(){ 
 	vec4 worldPos = objectToWorld * vec4(aPos,  1.0f);

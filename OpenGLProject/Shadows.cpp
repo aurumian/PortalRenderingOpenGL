@@ -34,7 +34,7 @@ void Shadows::FreePool()
 	}
 }
 
-void Shadows::RenderShadowmap(PortalShadowedDirLight& light)
+void Shadows::RenderShadowmap(ShadowedDirLight& light)
 {
 	// get a shadowmap from the pool
 	if (stPool.size() == 0)
@@ -68,13 +68,15 @@ void Shadows::RenderShadowmap(PortalShadowedDirLight& light)
 		if (p == nullptr)
 			continue;
 		p->prevStencil = 0;
-		auto iter = light.perPortal.find(p);
-		if (iter != light.perPortal.end())
-			p->stencilVal = (*iter).second.stencilVal;
-		else
-			// so it would still leave a shadow
-			p->stencilVal = 0;
+		// so it would still leave a shadow
+		p->stencilVal = 0;
 		wtvs[p] = cam.GetWorldToViewMatrix();
+	}
+	for (auto* ddl : light.drawableLights)
+	{
+		if (ddl->portal == nullptr)
+			continue;
+		ddl->portal->stencilVal = ddl->stencilVal;
 	}
 
 	{
@@ -132,12 +134,12 @@ void Shadows::RenderShadowmap(PortalShadowedDirLight& light)
 	// draw only the planes that will be redrawn later
 	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 	glDepthFunc(GL_ALWAYS);
-	for (auto& p : light.perPortal) {
-		if (p.first == nullptr)
+	for (auto& p : light.drawableLights) {
+		if (p->portal == nullptr)
 			continue;
-		glStencilFunc(GL_EQUAL, p.first->stencilVal, 0xFF);
+		glStencilFunc(GL_EQUAL, p->stencilVal, 0xFF);
 
-		MeshRenderer* r = p.first->GetComponent<MeshRenderer>();
+		MeshRenderer* r = p->portal->GetComponent<MeshRenderer>();
 		// use shader that sets depth to 1.0 (clears it)
 		r->Draw(clearDepthMat);
 	}
@@ -147,8 +149,8 @@ void Shadows::RenderShadowmap(PortalShadowedDirLight& light)
 	// for each portal draw the scene again to update the depth map
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
-	for (auto& pa : light.perPortal) {
-		Portal* p = pa.first;
+	for (auto& pa : light.drawableLights) {
+		Portal* p = pa->portal;
 		if (p == nullptr)
 			continue;
 		cam.SetWorldToViewMatrix(wtvs[p]);

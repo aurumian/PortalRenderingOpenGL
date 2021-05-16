@@ -20,7 +20,7 @@ Lighting::~Lighting() {
 
 void Lighting::AddLights(const PortalSpace* ps, const Camera& cam)
 {
-	unordered_map<PortalShadowedDirLight*, uint32_t> uniqueShadowedLights;
+	unordered_map<ShadowedDirLight*, uint32_t> uniqueShadowedLights;
 	for (const DrawableDirLight* ddlp : ps->drawableDirLights)
 	{
 		if (dirLights.numDirLights >= MAX_DIR_LIGHT_COUNT)
@@ -28,10 +28,9 @@ void Lighting::AddLights(const PortalSpace* ps, const Camera& cam)
 			break;
 		}
 		const DrawableDirLight& ddl = *ddlp;
-		DirLight* light = ddl.psdl->light;
-		PerPortalDirLightData& data = ddl.psdl->perPortal[ddl.portal];
+		DirLight* light = ddl.sdl->light;
 		GpuDirLight& l = dirLights.lights[dirLights.numDirLights++];
-		l.direction = glm::mat3(cam.GetWorldToViewMatrix()) * data.direction;
+		l.direction = glm::mat3(cam.GetWorldToViewMatrix()) * ddl.direction;
 		if (ddl.portal == nullptr)
 			l.ambientStrength = light->ambientStrenght;
 		else
@@ -39,23 +38,23 @@ void Lighting::AddLights(const PortalSpace* ps, const Camera& cam)
 		l.color = light->color;
 		l.intensity = light->intensity;
 		
-		l.lightSpaceMatrix = data.lightSpaceMatrix;
-		l.lsPortalEq = data.lsPortalEq;
+		l.lightSpaceMatrix = ddl.lightSpaceMatrix;
+		l.lsPortalEq = ddl.lsPortalEq;
 
-		l.smStencilRef = data.stencilVal;
+		l.smStencilRef = ddl.stencilVal;
 
 		// number of uniqueShadowedLights cannot excede MAX_DIR_LIGHT_COUNT
 		// but if I'm planning to have different max number of lights
 		// and max number of shadowmaps I should include a check here
 		// and also lights coming from portals can only be used with 
 		// a shadomap
-		if (uniqueShadowedLights.find(ddl.psdl) == uniqueShadowedLights.end())
+		if (uniqueShadowedLights.find(ddl.sdl) == uniqueShadowedLights.end())
 		{
-			uniqueShadowedLights.insert({ ddl.psdl, (uint32_t)numShadowmaps });
-			shadowmaps[numShadowmaps++] = ddl.psdl->shadowmap;
+			uniqueShadowedLights.insert({ ddl.sdl, (uint32_t)numShadowmaps });
+			shadowmaps[numShadowmaps++] = ddl.sdl->shadowmap;
 			
 		}
-		l.smIndex = uniqueShadowedLights[ddl.psdl];
+		l.smIndex = uniqueShadowedLights[ddl.sdl];
 	}
 
 }
