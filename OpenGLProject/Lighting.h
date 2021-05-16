@@ -48,7 +48,7 @@ public:
 
 	~Lighting();
 
-	void AddLights(const PortalSpace* ps, const Camera& cam);
+	void AddLights(const SubScene* ps, const Camera& cam);
 
 	void ClearLights();
 

@@ -2,7 +2,7 @@
 
 #include "MathInclude.h"
 #include "Actor.h"
-#include "PortalSpace.h"
+#include "SubScene.h"
 #include "Camera.h"
 
 #include <unordered_map>
@@ -52,9 +52,9 @@ public:
 
 	glm::mat4 GetPortallingMat() const;
 
-	//static PortalRenderTree GetPortalRenderTree(PortalSpace::PortalContainerConstRef portals);
+	//static PortalRenderTree GetPortalRenderTree(SubScene::PortalContainerConstRef portals);
 
-	static size_t GetMaxRenderDepth(PortalSpace::PortalContainerConstRef portals);
+	static size_t GetMaxRenderDepth(SubScene::PortalContainerConstRef portals);
 
 
 	
@@ -72,7 +72,7 @@ public:
 
 	const glm::vec4& GetViewspacePortalEquation() const;
 
-	PortalSpace* GetDestPortalSpace() const;
+	SubScene* GetDestSubScene() const;
 
 	friend class PortalRenderTree;
 private:
@@ -90,12 +90,12 @@ class PortalRenderTree {
 public:
 	PortalRenderTree();
 
-	PortalRenderTree(PortalSpace::PortalContainerConstRef portals, const Camera& cam);
+	PortalRenderTree(SubScene::PortalContainerConstRef portals, const Camera& cam);
 
 	/*
 	* Constructs a tree discarding previous elements
 	*/
-	void ConstructTree(PortalSpace::PortalContainerConstRef portals, const Camera& cam, const size_t maxDepth = SIZE_MAX);
+	void ConstructTree(SubScene::PortalContainerConstRef portals, const Camera& cam, const size_t maxDepth = SIZE_MAX);
 
 	class Iterator {
 	public:

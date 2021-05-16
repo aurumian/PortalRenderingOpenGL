@@ -1,6 +1,6 @@
 #include "Lighting.h"
 #include "UniformBufferObject.h"
-#include "PortalSpace.h"
+#include "SubScene.h"
 #include "Shadows.h"
 #include "Camera.h"
 
@@ -18,7 +18,7 @@ Lighting::~Lighting() {
 	delete ubo;
 }
 
-void Lighting::AddLights(const PortalSpace* ps, const Camera& cam)
+void Lighting::AddLights(const SubScene* ps, const Camera& cam)
 {
 	unordered_map<ShadowedDirLight*, uint32_t> uniqueShadowedLights;
 	for (const DrawableDirLight* ddlp : ps->drawableDirLights)

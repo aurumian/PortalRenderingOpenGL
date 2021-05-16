@@ -7,7 +7,7 @@
 #include "Portal.h"
 #include "Lighting.h"
 #include "Shadows.h"
-#include "PortalSpace.h"
+#include "SubScene.h"
 
 UniformBufferObject* globalMatrices;
 UniformBufferObject* portalBlock;
@@ -15,9 +15,9 @@ UniformBufferObject* portalBlock;
 int screenWidth = SCR_WIDTH, screenHeight = SCR_HEIGHT;
 Material sceneMat;
 
-PortalSpace defaultPortalSpace;
+SubScene defaultSubScene;
 
-PortalSpace* currentPortalSpace;
+SubScene* currentSubScene;
 
 extern PortalRenderTree prTree;
 
@@ -60,9 +60,9 @@ void SetGlobalClippingPlane2(const glm::vec4& eq)
 	portalBlock->SetBufferSubData(sizeof(glm::vec4), sizeof(glm::vec4), glm::value_ptr(eq));
 }
 
-PortalSpace* GetDefaultPortalSpace()
+SubScene* GetDefaultSubScene()
 {
-	return &defaultPortalSpace;
+	return &defaultSubScene;
 }
 
 UniformBufferObject* GetPortalBlockUbo()
@@ -169,7 +169,7 @@ void DrawScene(const Camera& camera, const PortalRenderTree& prTree, const Mater
 			auto i = iter;
 			while (i != prTree.End() && (*i)->GetDepth() == depth)
 			{
-				for (const auto o : i.operator*()->GetDestPortalSpace()->inbetweenObjects)
+				for (const auto o : i.operator*()->GetDestSubScene()->inbetweenObjects)
 				{
 					if (depth > 0 && o->enteredPortal->dest == i.operator*()->GetPortal())
 					{
@@ -194,7 +194,7 @@ void DrawScene(const Camera& camera, const PortalRenderTree& prTree, const Mater
 					BeginDrawInsidePortal(**i);
 					glEnable(GL_CLIP_DISTANCE1);
 					SetGlobalClippingPlane2(eq);
-					lighting->AddLights(i.operator*()->GetDestPortalSpace(), camera);
+					lighting->AddLights(i.operator*()->GetDestSubScene(), camera);
 					lighting->SendToGPU();
 					glStencilFunc(GL_EQUAL, i.operator*()->GetStencil(), 0xFF);
 					glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
@@ -298,7 +298,7 @@ void DrawScene(const Camera& camera, const PortalRenderTree& prTree, const Mater
 			while (i != prTree.End() && (*i)->GetDepth() == depth + 1)
 			{
 				const Camera& camera = i.operator*()->GetParent()->GetCamera();
-				for (const auto o : i.operator*()->GetPortal()->GetPortalSpace()->inbetweenObjects)
+				for (const auto o : i.operator*()->GetPortal()->GetSubScene()->inbetweenObjects)
 				{
 					if (o->enteredPortal != i.operator*()->GetPortal())
 					{
@@ -338,7 +338,7 @@ void DrawScene(const Camera& camera, const PortalRenderTree& prTree, const Mater
 						BeginDrawInsidePortal(*((*i)->GetParent()));
 						glEnable(GL_CLIP_DISTANCE1);
 						SetGlobalClippingPlane2(eq);
-						lighting->AddLights(i.operator*()->GetDestPortalSpace(), camera);
+						lighting->AddLights(i.operator*()->GetDestSubScene(), camera);
 						for (size_t k = 0; k < lighting->dirLights.numDirLights; ++k)
 						{
 							auto& dl = lighting->dirLights.lights[k];
@@ -378,12 +378,12 @@ void ForwardRenderScene(const Camera& camera) {
 
 	// render shadowmaps
 	{
-		if (PortalSpace::shadowmappedLights.size() > 0)
-			shadows->RenderShadowmap(*(*GetDefaultPortalSpace()->shadowmappedLights.begin()));
+		if (SubScene::shadowmappedLights.size() > 0)
+			shadows->RenderShadowmap(*(*GetDefaultSubScene()->shadowmappedLights.begin()));
 	}
 
 	// compute the portal rendering tree
-	prTree.ConstructTree(currentPortalSpace->GetPortals(), camera);
+	prTree.ConstructTree(currentSubScene->GetPortals(), camera);
 
 	DrawScene(camera, prTree);
 
@@ -447,8 +447,8 @@ void CreateGBuffer()
 
 void DeferedRenderScene(const Camera& camera)
 {
-	if (PortalSpace::shadowmappedLights.size() > 0)
-		shadows->RenderShadowmap(**(PortalSpace::shadowmappedLights.begin()));
+	if (SubScene::shadowmappedLights.size() > 0)
+		shadows->RenderShadowmap(**(SubScene::shadowmappedLights.begin()));
 
 	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
 	glEnable(GL_DEPTH_TEST);
@@ -459,11 +459,11 @@ void DeferedRenderScene(const Camera& camera)
 	glDisable(GL_CULL_FACE);
 
 	// compute the portal rendering tree
-	prTree.ConstructTree(currentPortalSpace->GetPortals(), camera);
+	prTree.ConstructTree(currentSubScene->GetPortals(), camera);
 
 	// gPass
 	{
-		//currentPortalSpace->Draw(&camera, &gPassMat);
+		//currentSubScene->Draw(&camera, &gPassMat);
 
 		GeometryPass(camera, prTree, &gPassMat);
 	}
@@ -492,7 +492,7 @@ void DeferedRenderScene(const Camera& camera)
 	for (auto iter = prTree.Begin(); iter != prTree.End(); ++iter)
 	{
 		glStencilFunc(GL_EQUAL, (*iter)->GetStencil(), 0xFF);
-		lighting->AddLights((*iter)->GetDestPortalSpace(), (*iter)->GetCamera());
+		lighting->AddLights((*iter)->GetDestSubScene(), (*iter)->GetCamera());
 		lighting->SendToGPU();
 		Shader* sp = lpRenderer->GetMaterial()->shader;
 		sp->Use();
@@ -560,7 +560,7 @@ void GeometryPass(const Camera& camera, const PortalRenderTree& prTree, const Ma
 			auto i = iter;
 			while (i != prTree.End() && (*i)->GetDepth() == depth)
 			{
-				for (const auto o : i.operator*()->GetDestPortalSpace()->inbetweenObjects)
+				for (const auto o : i.operator*()->GetDestSubScene()->inbetweenObjects)
 				{
 					if (depth > 0 && o->enteredPortal->dest == i.operator*()->GetPortal())
 					{
@@ -684,7 +684,7 @@ void GeometryPass(const Camera& camera, const PortalRenderTree& prTree, const Ma
 			while (i != prTree.End() && (*i)->GetDepth() == depth + 1)
 			{
 				const Camera& camera = i.operator*()->GetParent()->GetCamera();
-				for (const auto o : i.operator*()->GetPortal()->GetPortalSpace()->inbetweenObjects)
+				for (const auto o : i.operator*()->GetPortal()->GetSubScene()->inbetweenObjects)
 				{
 					if (o->enteredPortal != i.operator*()->GetPortal())
 					{

@@ -29,7 +29,7 @@
 #include "Lighting.h"
 #include "Shadows.h"
 #include "Common.h"
-#include "PortalSpace.h"
+#include "SubScene.h"
 
 using namespace std;
 
@@ -138,8 +138,8 @@ Actor bulb;
 Actor monke;
 Actor monke2;
 
-// PortalSpace 2
-PortalSpace portalSpace2;
+// SubScene 2
+SubScene subScene2;
 
 void ClearVisibleDirLights();
 
@@ -651,7 +651,7 @@ int main() {
 	}
 
 
-	PortalSpace* dps = GetDefaultPortalSpace();
+	SubScene* dps = GetDefaultSubScene();
 	dps->AddActor(&mnk);
 	dps->AddActor(&ps1);
 	dps->AddPortal(&p3);
@@ -659,15 +659,15 @@ int main() {
 	dps->AddPortal(&p5);
 	dps->AddPortal(&p7);
 	dps->dirLights.insert(&dirLight);
-	dirLight.portalSpace = dps;
-	portalSpace2.AddActor(&ps2);
-	portalSpace2.AddActor(&bulb);
-	portalSpace2.AddPortal(&p1);
-	portalSpace2.AddPortal(&p2);
-	portalSpace2.AddPortal(&p6);
-	portalSpace2.AddPortal(&p8);
+	dirLight.subScene = dps;
+	subScene2.AddActor(&ps2);
+	subScene2.AddActor(&bulb);
+	subScene2.AddPortal(&p1);
+	subScene2.AddPortal(&p2);
+	subScene2.AddPortal(&p6);
+	subScene2.AddPortal(&p8);
 
-	currentPortalSpace = dps;
+	currentSubScene = dps;
 
 	// object between portals
 	{
@@ -691,7 +691,7 @@ int main() {
 		o->actor = &monke2;
 		o->enteredNormal = -p7.dest->transform.rotation.GetForwardVector();
 		o->enteredPortal = p7.dest;
-		p7.dest->GetPortalSpace()->inbetweenObjects.insert(o);
+		p7.dest->GetSubScene()->inbetweenObjects.insert(o);
 	}
 
 
@@ -789,7 +789,7 @@ void OnPlayerTriggerEnter(const RayHit& hit) {
 		t.position = posMat * glm::vec4(t.position, 1.0f);
 		t.rotation = p2.rotation.GetQuaterion() * rot.GetQuaterion() * glm::inverse(p1.rotation.GetQuaterion()) * t.rotation.GetQuaterion();
 		player.SetCameraTransfrom(t);
-		currentPortalSpace = p->dest->GetPortalSpace();
+		currentSubScene = p->dest->GetSubScene();
 	}
 }
 
@@ -860,7 +860,7 @@ void PrerenderPortal(const Portal& p, GLuint& outCm) {
 			GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, outCm, 0);
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		cam.SetWorldToViewMatrix(wtvs[i]);
-		currentPortalSpace->Draw(&cam);
+		currentSubScene->Draw(&cam);
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -868,11 +868,11 @@ void PrerenderPortal(const Portal& p, GLuint& outCm) {
 }
 
 void CalcVisibleDirLights() {
-	std::vector<PortalSpace*> spaces;
-	spaces.push_back(GetDefaultPortalSpace());
-	spaces.push_back(&portalSpace2);
+	std::vector<SubScene*> spaces;
+	spaces.push_back(GetDefaultSubScene());
+	spaces.push_back(&subScene2);
 	// first insert lights that exist in a space itself
-	for (PortalSpace* ps : spaces)
+	for (SubScene* ps : spaces)
 	{
 		for (DirLight* l : ps->dirLights)
 		{
@@ -889,22 +889,22 @@ void CalcVisibleDirLights() {
 				d.sdl = sdl;
 				d.portal = nullptr;
 				auto res = sdl->drawableLights.insert(ddl);
-				PortalSpace::shadowmappedLights.insert(sdl);
+				SubScene::shadowmappedLights.insert(sdl);
 				ps->drawableDirLights.insert(ddl);
 			}
 		}
 	}
 
 	// then insert lights incoming from neighbor spaces
-	for (PortalSpace* ps : spaces)
+	for (SubScene* ps : spaces)
 	{
 		for (Portal* p : ps->GetPortals())
 		{
-			PortalSpace* other = p->dest->GetPortalSpace();
-			for (ShadowedDirLight* l : PortalSpace::shadowmappedLights)
+			SubScene* other = p->dest->GetSubScene();
+			for (ShadowedDirLight* l : SubScene::shadowmappedLights)
 			{
-				// must use only the other portalSpace's own lights
-				if (l->light->GetPortalSpace() != other)
+				// must use only the other subScene's own lights
+				if (l->light->GetSubScene() != other)
 					continue;
 				if (ps->drawableDirLights.size() >= Lighting::MAX_DIR_LIGHT_COUNT)
 					break;
@@ -935,9 +935,9 @@ void CalcVisibleDirLights() {
 
 void ClearVisibleDirLights()
 {
-	std::vector<PortalSpace*> spaces;
-	spaces.push_back(GetDefaultPortalSpace());
-	spaces.push_back(&portalSpace2);
+	std::vector<SubScene*> spaces;
+	spaces.push_back(GetDefaultSubScene());
+	spaces.push_back(&subScene2);
 
 	for (auto* space : spaces)
 	{
@@ -946,9 +946,9 @@ void ClearVisibleDirLights()
 		space->drawableDirLights.clear();
 	}
 
-	for (auto* sl : PortalSpace::shadowmappedLights)
+	for (auto* sl : SubScene::shadowmappedLights)
 		delete sl;
-	PortalSpace::shadowmappedLights.clear();
+	SubScene::shadowmappedLights.clear();
 }
 
 
@@ -965,7 +965,7 @@ void ClearVisibleDirLights()
 //	To generate shadowmap for all lights i need:
 //		a list of lights each of which has a list of portals
 // 
-// the light should probably store the info of which PortalSpace it belongs to
+// the light should probably store the info of which SubScene it belongs to
 // as should all actors
 // 
 // RenderShadowmap needs to store the PerPortalLightData
@@ -977,7 +977,7 @@ void ClearVisibleDirLights()
 // used lights need to be removed after each PortalArea rendering
 // 
 // TODO:
-// update actor to include reference to portalSpace +
+// update actor to include reference to subScene +
 // add default portal space +
 // add actors to portal space(s) +
 // draw portal space instead of draw scene
@@ -993,15 +993,15 @@ void ClearVisibleDirLights()
 // 
 // 
 // TODO:
-//		keep track of the current portalSpace and change it when entering a portal +
+//		keep track of the current subScene and change it when entering a portal +
 //		update  CalcVisibleDirLights() as it doesn't create a comfortable data structure - i cannot get the lights that are in the space easily +
 //		bugfix shadowmap generation as it doesn't seem to include all the portals +
-//		select lights based on the currently rendered PortalSpace +
-//		update everyplace to use PortalSpace::Draw() instead of DrawScene +
+//		select lights based on the currently rendered SubScene +
+//		update everyplace to use SubScene::Draw() instead of DrawScene +
 //		update shader to iterate through lights +
 //		fix a bug where shadowmap sometimes has a huge offset - it's probably just that dirLights[0] is a different light (cause i use a hashset) +
 //		add lightspace portalspace equation to sample shadowmaps properly - it's calculated the same way as viewspace plane equation (for ortho projection) +
-//		ambient lighting should only come from the PortalSpace's own lights +
+//		ambient lighting should only come from the SubScene's own lights +
 //		calculate light matrices to fit frustum (especially when inside portals)
 // 
 // 

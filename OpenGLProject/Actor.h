@@ -28,12 +28,12 @@ public:
 		return nullptr;
 	}
 
-	PortalSpace* GetPortalSpace() const;
+	SubScene* GetSubScene() const;
 
 	Transform transform;
 
 	// TODO: move this to private
-	PortalSpace* portalSpace;
+	SubScene* subScene;
 protected:
 	virtual void OnRayHit(RayHit hit) {}
 
@@ -41,5 +41,5 @@ protected:
 
 private:
 	
-	friend class PortalSpace;
+	friend class SubScene;
 };

@@ -22,8 +22,8 @@ void Actor::AddComponent(Component* comp)
 	}
 }
 
-PortalSpace* Actor::GetPortalSpace() const
+SubScene* Actor::GetSubScene() const
 {
-	return portalSpace;
+	return subScene;
 }
 

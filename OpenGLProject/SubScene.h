@@ -8,7 +8,7 @@ class Actor;
 class Portal;
 class Camera;
 
-class PortalSpace
+class SubScene
 {
 public:
 

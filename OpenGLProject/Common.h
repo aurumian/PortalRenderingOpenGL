@@ -14,7 +14,7 @@ class MeshRenderer;
 struct PortalShadowedDirLight;
 class Lighting;
 struct DrawableDirLight;
-class PortalSpace;
+class SubScene;
 class Camera;
 class PortalRenderTree;
 
@@ -78,9 +78,9 @@ class Shadows;
 
 extern Shadows* shadows;
 
-extern PortalSpace* currentPortalSpace;
+extern SubScene* currentSubScene;
 
-PortalSpace* GetDefaultPortalSpace();
+SubScene* GetDefaultSubScene();
 
 struct InBetweenObject
 {

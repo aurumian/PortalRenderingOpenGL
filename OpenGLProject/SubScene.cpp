@@ -1,41 +1,41 @@
-#include "PortalSpace.h"
+#include "SubScene.h"
 #include "MeshRenderer.h"
 #include "Material.h"
 #include "Shadows.h"
 #include "Portal.h"
 #include "Camera.h"
 
-std::unordered_set<ShadowedDirLight*> PortalSpace::shadowmappedLights;
+std::unordered_set<ShadowedDirLight*> SubScene::shadowmappedLights;
 
 // temp
 extern Actor bulb;
 
-void PortalSpace::AddActor(Actor* actor)
+void SubScene::AddActor(Actor* actor)
 {
-	if (actor->portalSpace == this)
+	if (actor->subScene == this)
 		return;
-	if (actor->portalSpace != nullptr)
+	if (actor->subScene != nullptr)
 	{
-		actor->portalSpace->RemoveActor(actor);
+		actor->subScene->RemoveActor(actor);
 	}
 	MeshRenderer* mr = actor->GetComponent<MeshRenderer>();
 	if (mr != nullptr)
 		renderers.insert(mr);
 	actors.insert(actor);
-	actor->portalSpace = this;
+	actor->subScene = this;
 }
 
-void PortalSpace::RemoveActor(Actor* actor)
+void SubScene::RemoveActor(Actor* actor)
 {
-	if (actor->portalSpace == this)
+	if (actor->subScene == this)
 		actors.erase(actor);
-	actor->portalSpace = nullptr;
+	actor->subScene = nullptr;
 	MeshRenderer* mr = actor->GetComponent<MeshRenderer>();
 	if (mr != nullptr)
 		renderers.erase(mr);
 }
 
-void PortalSpace::Draw(const Camera* cam, const Material* matOverride)
+void SubScene::Draw(const Camera* cam, const Material* matOverride)
 {
 	if (cam != nullptr)
 	{
@@ -86,13 +86,13 @@ void PortalSpace::Draw(const Camera* cam, const Material* matOverride)
 }
 
 
-void PortalSpace::AddPortal(Portal* p)
+void SubScene::AddPortal(Portal* p)
 {
 	portals.insert(p);
-	p->portalSpace = this;
+	p->subScene = this;
 }
 
-PortalSpace::PortalContainerConstRef PortalSpace::GetPortals()
+SubScene::PortalContainerConstRef SubScene::GetPortals()
 {
 	return portals;
 }

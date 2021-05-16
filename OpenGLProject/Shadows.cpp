@@ -7,7 +7,7 @@
 #include "Portal.h"
 #include "Common.h"
 #include "Material.h"
-#include "PortalSpace.h"
+#include "SubScene.h"
 #include "Camera.h"
 #include "Actor.h"
 
@@ -45,7 +45,7 @@ void Shadows::RenderShadowmap(ShadowedDirLight& light)
 	// assign the shadowmap to drawable light
 	light.shadowmap = sm;
 
-	auto* ps = light.light->GetPortalSpace();
+	auto* ps = light.light->GetSubScene();
 
 	// get portals that this light might go through
 	auto& portals = ps->GetPortals();

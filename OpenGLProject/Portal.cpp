@@ -3,7 +3,7 @@
 #include "Common.h"
 #include "MeshRenderer.h"
 #include "Material.h"
-#include "PortalSpace.h"
+#include "SubScene.h"
 
 
 
@@ -52,7 +52,7 @@ glm::vec4 Portal::GetViewspacePortalEquation(glm::mat4 worldToView, bool isOrtho
 /*
 	uses breadth first search to determine max rendering depth
 */
-size_t Portal::GetMaxRenderDepth(PortalSpace::PortalContainerConstRef portals) {
+size_t Portal::GetMaxRenderDepth(SubScene::PortalContainerConstRef portals) {
 	stencil_t numPortalRenderings = 0;
 	size_t depth = 1;
 
@@ -73,7 +73,7 @@ size_t Portal::GetMaxRenderDepth(PortalSpace::PortalContainerConstRef portals) {
 			nextDepthIncr++;
 			pl.push_back(po);
 		}*/
-		for (Portal* po : p->portalSpace->GetPortals()) {
+		for (Portal* po : p->subScene->GetPortals()) {
 			if (po == p)
 				continue;
 			nextDepthIncr++;
@@ -107,12 +107,12 @@ PortalRenderTree::PortalRenderTree()
 	numNodes = 0;
 }
 
-PortalRenderTree::PortalRenderTree(PortalSpace::PortalContainerConstRef portals, const Camera& cam)
+PortalRenderTree::PortalRenderTree(SubScene::PortalContainerConstRef portals, const Camera& cam)
 {
 	ConstructTree(portals, cam);
 }
 
-void PortalRenderTree::ConstructTree(PortalSpace::PortalContainerConstRef portals, const Camera& cam, const size_t maxDepth)
+void PortalRenderTree::ConstructTree(SubScene::PortalContainerConstRef portals, const Camera& cam, const size_t maxDepth)
 {
 	// use breadth first search to construct the tree
 	{
@@ -180,7 +180,7 @@ void PortalRenderTree::ConstructTree(PortalSpace::PortalContainerConstRef portal
 					break;
 			}
 
-			for (Portal* po : p.second->dest->portalSpace->GetPortals()) {
+			for (Portal* po : p.second->dest->subScene->GetPortals()) {
 				if (po == p.second->dest)
 					continue;
 				// TODO: add only portals that can be seen through the parent portal
@@ -342,7 +342,7 @@ void EndDrawInsidePortal()
 void DrawPortalContents(const PortalRenderTreeNode& p, const Material* matOverride) 
 {
 	BeginDrawInsidePortal(p);
-	p.GetDestPortalSpace()->Draw(&p.GetCamera(), matOverride);
+	p.GetDestSubScene()->Draw(&p.GetCamera(), matOverride);
 	EndDrawInsidePortal();
 }
 
@@ -362,7 +362,7 @@ glm::mat4 DrawPortalContents(const Portal& p, const Camera& cam, Material* matOv
 		SetGlobalViewspacePortalEquation(p.dest->GetViewspacePortalEquation(newWTV, c.IsOrtho()));
 
 		glEnable(GL_CLIP_DISTANCE0);
-		p.dest->GetPortalSpace()->Draw(&c, matOverride);
+		p.dest->GetSubScene()->Draw(&c, matOverride);
 		glDisable(GL_CLIP_DISTANCE0);
 	}
 
@@ -399,10 +399,10 @@ const glm::vec4& PortalRenderTreeNode::GetViewspacePortalEquation() const
 	return vsPortalEq;
 }
 
-PortalSpace* PortalRenderTreeNode::GetDestPortalSpace() const
+SubScene* PortalRenderTreeNode::GetDestSubScene() const
 {
 	if (portal == nullptr)
-		return currentPortalSpace;
+		return currentSubScene;
 	else
-		return portal->dest->GetPortalSpace();
+		return portal->dest->GetSubScene();
 }

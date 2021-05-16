@@ -87,7 +87,7 @@
     <ClCompile Include="Common.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PortalSpace.cpp">
+    <ClCompile Include="SubScene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -220,7 +220,7 @@
     <ClInclude Include="Common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="PortalSpace.h">
+    <ClInclude Include="SubScene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
